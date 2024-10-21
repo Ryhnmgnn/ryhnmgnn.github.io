@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming - FilmFlix</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo"><i class="fas fa-film"></i> FilmFlix</div>
+            <ul>
+                <li><a href="index.html"><i class="fas fa-home"></i> Beranda</a></li>
+                <li class="dropdown">
+                    <a href="daftarnonton.html"><i class="fas fa-video"></i> Film</a>
+                    <ul class="dropdown-content">
+                        <li><a href="aksi.html">Aksi</a></li>
+                        <li><a href="comady.html">Komedi</a></li>
+                        <li><a href="drama.html">Drama</a></li>
+                        <li><a href="horor.html">Horor</a></li>
+                        <li><a href="romantis.html">Romantis</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="serialtv.html"><i class="fas fa-tv"></i> Serial TV</a>
+                    <ul class="dropdown-content">
+                        <li><a href="serialaksi.html">Serial Aksi</a></li>
+                        <li><a href="serialkomedi.html">Komedi</a></li>
+                        <li><a href="serialdrama.html">Drama</a></li>
+                        <li><a href="serialsci-fi.html">Sci-FI</a></li>
+                    </ul>
+                </li>
+                <li><a href="tentangkami.html"><i class="fas fa-info-circle"></i> Tentang Kami</a></li>
+            </ul>
+            <form id="search-form" class="search-form" onsubmit="return searchMovie()">
+                <input type="text" id="search-input" placeholder="Cari judul film...">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </form>
+        </nav>
+    </header>
+    
+    <main class="content-wrapper">
+    <section id="video-player">
+        <h1>Film 1</h1>
+        <video id="myVideo" controls>
+            <source src="path/to/your/video.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <button id="fullscreen-btn">Toggle Fullscreen</button>
+    </section>
+
+<section id="comments">
+    <h2>Komentar</h2>
+    <div id="comment-list">
+        <!-- Komentar akan ditambahkan di sini oleh JavaScript -->
+    </div>
+    <form id="comment-form">
+        <input type="text" id="username-input" placeholder="Nama Anda" required>
+        <textarea id="comment-input" placeholder="Tulis komentar Anda di sini..." rows="4" required></textarea>
+        <button type="submit">Kirim Komentar</button>
+    </form>
+</section>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // ... existing code ...
+        const commentForm = document.getElementById('comment-form');
+        const commentList = document.getElementById('comment-list');
+        const commentInput = document.getElementById('comment-input');
+        const usernameInput = document.getElementById('username-input');
+
+        function saveComments(comments) {
+            localStorage.setItem('filmComments', JSON.stringify(comments));
+        }
+
+        function getComments() {
+    const savedComments = localStorage.getItem('filmComments');
+    console.log('Saved comments:', savedComments);
+    return savedComments ? JSON.parse(savedComments) : [];
+}
+
+function displayComments() {
+            const comments = getComments();
+            commentList.innerHTML = '';
+            comments.forEach(function(comment) {
+                if (comment && comment.username && comment.text && comment.timestamp) {
+                    addCommentToDOM(comment);
+                }
+            });
+        }
+
+        function addCommentToDOM(comment) {
+            const commentElement = document.createElement('div');
+            commentElement.classList.add('comment');
+            commentElement.innerHTML = `
+                <strong>${comment.username}</strong> - ${comment.timestamp}<br>
+                ${comment.text}
+            `;
+            commentList.appendChild(commentElement);
+        }
+
+        // ... rest of the code ...
+
+        commentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const commentText = commentInput.value.trim();
+            const username = usernameInput.value.trim();
+            if (commentText && username) {
+                const now = new Date();
+                const timestamp = now.toLocaleString('id-ID', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                const newComment = {
+                    username: username,
+                    text: commentText,
+                    timestamp: timestamp
+                };
+                const comments = getComments();
+                comments.push(newComment);
+                saveComments(comments);
+                addCommentToDOM(newComment);
+                commentInput.value = '';
+                usernameInput.value = '';
+            }
+        });
+
+        displayComments();
+    });
+</script>
+<script src="script.js"></script>
+<div id="search-results" class="search-results"></div>
+<script src="movieData.js"></script>
+<script src="movieManager.js"></script>
+<style>
+    /* ... existing styles ... */
+
+    @keyframes fadeInUp {
+       from {
+           opacity: 0;
+           transform: translateY(20px);
+       }
+       to {
+           opacity: 1;
+           transform: translateY(0);
+       }
+   }
+
+   .comment {
+       background-color: #000000;
+       padding: 10px;
+       margin-bottom: 10px;
+       border-radius: 4px;
+       animation: fadeInUp 0.5s ease-out;
+   }
+
+   .comment strong {
+       display: inline-block;
+       animation: colorChange 3s infinite alternate;
+   }
+
+   @keyframes colorChange {
+       0% { color: #ff0000; }
+       50% { color: #00ff00; }
+       100% { color: #0000ff; }
+   }
+
+   .comment-text {
+       animation: fadeIn 1s ease-out;
+   }
+
+   @keyframes fadeIn {
+       from { opacity: 0; }
+       to { opacity: 1; }
+   }
+
+   #fullscreen-btn {
+       background-color: #007bff;
+       color: #ffffff;
+       border: none;
+       padding: 10px 20px;
+       border-radius: 4px;
+       cursor: pointer;
+       margin-top: 10px;
+   }
+   #fullscreen-btn:hover {
+       background-color: #0056b3;
+   }
+   .content-wrapper {
+       max-width: 100%;
+       margin: 0 auto;
+       padding: 20px;
+   }
+   #video-player {
+       margin-bottom: 30px;
+       width: 100%;
+   }
+   #myVideo {
+   width: 100%;
+   max-width: 100%;
+   display: block;
+   margin: 0 auto;
+}
+   #comments {
+       background-color: #3b0b0b;
+       padding: 20px;
+       border-radius: 8px;
+   }
+   #comment-list {
+       margin-bottom: 20px;
+   }
+  
+   #comment-form textarea {
+       width: 100%;
+       padding: 10px;
+       margin-bottom: 10px;
+       border: 1px solid #fd0404;
+       border-radius: 4px;
+   }
+   #comment-form button {
+       background-color: #007bff;
+       color: #040000;
+       border: none;
+       padding: 10px 20px;
+       border-radius: 4px;
+       cursor: pointer;
+   }
+</style>
+</body>
+</html>
