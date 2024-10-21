@@ -191,35 +191,7 @@ footer {
 .dropdown-content {
     display: none;
     position: absolute;
-    background-color: #f9f9f9;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1;
-}
-
-.dropdown-content li {
-    display: block;
-}
-
-.dropdown-content a {
-    color: black;
-    padding: 12px 16px;
-    text-decoration: none;
-    display: block;
-}
-
-.dropdown-content a:hover {
-    background-color: #f1f1f1;
-}
-
-.dropdown:hover .dropdown-content {
-    display: block;
-}
-
-.dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #f9f9f9;
+    background-color: #ffffff;
     min-width: 160px;
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
     z-index: 1;
@@ -231,11 +203,12 @@ footer {
 }
 
 .dropdown-content a {
-    color: black;
+    color: #333;
     padding: 12px 16px;
     text-decoration: none;
     display: block;
     transition: background-color 0.3s ease;
+    text-align: left; /* Mengatur teks ke kiri */
 }
 
 .dropdown-content a:hover {
@@ -457,3 +430,94 @@ footer {
         top: 120px;
     }
 }
+
+/* Responsive design */
+@media screen and (max-width: 768px) {
+    nav {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .logo {
+        margin-bottom: 10px;
+    }
+
+    .menu-toggle {
+        display: block;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 1.5rem;
+        cursor: pointer;
+        align-self: flex-end;
+        margin-top: -30px; /* Sesuaikan jika perlu */
+    }
+
+    .menu-toggle span {
+        display: block;
+        width: 25px;
+        height: 3px;
+        background-color: #fff;
+        margin: 5px 0;
+    }
+
+    .nav-menu {
+        display: none;
+        width: 100%;
+    }
+
+    .nav-menu.active {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .nav-menu li {
+        margin: 10px 0;
+    }
+
+    .dropdown-content {
+        position: static;
+        background-color: #f9f9f9;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    .dropdown-content a {
+        padding: 10px 20px;
+        text-align: left; /* Memastikan teks tetap di kiri pada tampilan mobile */
+    }
+
+    .dropdown.active .dropdown-content {
+        display: block;
+    }
+
+    .search-form {
+        width: 100%;
+        margin: 10px 0;
+    }
+
+    .search-form input {
+        width: calc(100% - 50px); /* Sesuaikan dengan lebar tombol search */
+    }
+
+    /* Penyesuaian untuk grid film */
+    .movie-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+}
+
+/* Tambahkan media query untuk layar yang sangat kecil */
+@media screen and (max-width: 320px) {
+    .movie-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
+
+    .logo {
+        font-size: 1.2rem;
+    }
+
+    .search-form input {
+        font-size: 0.9rem;
+    }
+}
+
