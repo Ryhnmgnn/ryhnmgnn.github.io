@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming - FilmFlix</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo"><i class="fas fa-film"></i> FilmFlix</div>
+            <ul>
+                <li><a href="index.html"><i class="fas fa-home"></i> Beranda</a></li>
+                <li class="dropdown">
+                    <a href="daftarnonton.html"><i class="fas fa-video"></i> Film</a>
+                    <ul class="dropdown-content">
+                        <li><a href="aksi.html">Aksi</a></li>
+                        <li><a href="comady.html">Komedi</a></li>
+                        <li><a href="drama.html">Drama</a></li>
+                        <li><a href="horor.html">Horor</a></li>
+                        <li><a href="romantis.html">Romantis</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="serialtv.html"><i class="fas fa-tv"></i> Serial TV</a>
+                    <ul class="dropdown-content">
+                        <li><a href="serialaksi.html">Serial Aksi</a></li>
+                        <li><a href="serialkomedi.html">Komedi</a></li>
+                        <li><a href="serialdrama.html">Drama</a></li>
+                        <li><a href="serialsci-fi.html">Sci-FI</a></li>
+                    </ul>
+                </li>
+                <li><a href="tentangkami.html"><i class="fas fa-info-circle"></i> Tentang Kami</a></li>
+            </ul>
+            <form id="search-form" class="search-form" onsubmit="return searchMovie()">
+                <input type="text" id="search-input" placeholder="Cari judul film...">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </form>
+        </nav>
+    </header>
+
+    <main>
+        <section id="hero">
+            <div class="hero-content">
+                <h1>Selamat Datang di FilmFlix</h1>
+                <p>Nikmati ribuan film dan serial TV terbaik kapan saja, di mana saja.</p>
+                <a href="daftarnonton.html" class="cta-button"><i class="fas fa-play"></i> Mulai Menonton</a>
+            </div>
+        </section>
+
+        <section id="featured">
+            <h2><i class="fas fa-star"></i> Film Unggulan</h2>
+            <div class="movie-grid" id="featured-movies">
+                <a href="film1.html" class="movie-item">
+                    <img src="image/endgame.png" alt="Avengers: Endgame">
+                </a>
+                <a href="film2.html" class="movie-item">
+                    <img src="image/OIP (1).png" alt="Parasite">
+                </a>
+                <a href="film3.html" class="movie-item">
+                    <img src="image/memek.png" alt="Inception">
+                </a>
+                <a href="film4.html" class="movie-item">
+                    <img src="image/kontol.jpg" alt="The Shawshank Redemption1">
+                </a>
+                <a href="film5.html" class="movie-item">
+                    <img src="image/kontol.jpg" alt="The Shawshank Redemption2">
+                </a>
+                <a href="film6.html" class="movie-item">
+                    <img src="image/kontol.jpg" alt="The Shawshank Redemption3">
+                </a>
+            </div>
+            <a href="daftarnonton.html#featured" class="see-more-button">Lihat Semua Film Unggulan</a>
+        </section>
+    
+        <section id="popular">
+            <h2><i class="fas fa-fire"></i> Paling Populer</h2>
+            <div class="movie-grid" id="popular-movies">
+                <a href="film7.html" class="movie-item">
+                    <img src="image/joker.png" alt="Joker">
+                </a>
+                <a href="film8.html" class="movie-item">
+                    <img src="image/pulp.jpg" alt="Pulp Fiction">
+                </a>
+                <a href="film9.html" class="movie-item">
+                    <img src="image/knight.jpg" alt="The Dark Knight">
+                </a>
+                <a href="film10.html" class="movie-item">
+                    <img src="image/OIP.jpg" alt="Forrest Gump1">
+                </a>
+                <a href="film11.html" class="movie-item">
+                    <img src="image/OIP.jpg" alt="Forrest Gump2">
+                </a>
+                <a href="film12.html" class="movie-item">
+                    <img src="image/OIP.jpg" alt="Forrest Gump3">
+                </a>
+            </div>
+            <a href="daftarnonton.html#popular" class="see-more-button">Lihat Semua Film Populer</a>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2023 FilmFlix. Hak Cipta Dilindungi.</p>
+            <div class="social-icons">
+                <a href="#"><i class="fab fa-facebook"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+                <a href="#"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <div id="search-results" class="search-results"></div>
+    <script src="movieData.js"></script>
+    <script src="movieManager.js"></script>
+    </body>
+    </html>
