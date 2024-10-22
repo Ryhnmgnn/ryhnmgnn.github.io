@@ -5,6 +5,14 @@ class MovieManager {
         this.searchInput = document.getElementById('search-input');
         this.searchResults = document.getElementById('search-results');
         this.movieContainer = document.getElementById('movie-container');
+        
+        // Hapus atau komentari baris-baris berikut
+        // this.searchIcon = document.createElement('div');
+        // this.searchIcon.className = 'search-icon';
+        // this.searchIcon.innerHTML = '<i class="fas fa-film"></i>';
+        // this.searchForm.appendChild(this.searchIcon);
+        // this.searchIcon.style.display = 'none';
+        
         this.setupEventListeners();
     }
 
@@ -62,8 +70,14 @@ class MovieManager {
         }
         this.searchResults.style.display = 'block';
         
-        // Fokus ke hasil pencarian
-        this.searchResults.scrollIntoView({ behavior: 'smooth' });
+        // Hapus atau komentari baris berikut
+        // this.searchIcon.style.display = 'block';
+        
+        // Posisikan hasil pencarian di bawah tombol search
+        const searchFormRect = this.searchForm.getBoundingClientRect();
+        this.searchResults.style.top = `${searchFormRect.bottom}px`;
+        this.searchResults.style.left = `${searchFormRect.left}px`;
+        this.searchResults.style.width = `${searchFormRect.width}px`;
     }
 
     createMovieCard(movie) {

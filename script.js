@@ -270,3 +270,60 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function searchMovie() {
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    const query = searchInput.value.toLowerCase().trim();
+
+    // Clear previous results
+    searchResults.innerHTML = '';
+
+    if (query.length === 0) {
+        searchResults.style.display = 'none';
+        return;
+    }
+
+    // Filter movies based on the search query
+    const matchedMovies = movieData.filter(movie => 
+        movie.title.toLowerCase().includes(query) || 
+        movie.description.toLowerCase().includes(query)
+    );
+
+    // Display results
+    if (matchedMovies.length > 0) {
+        const resultsList = document.createElement('ul');
+        matchedMovies.forEach(movie => {
+            const listItem = document.createElement('li');
+            listItem.innerHTML = `
+                <a href="${movie.link}">
+                    <img src="${movie.image}" alt="${movie.title}">
+                    <span>${movie.title}</span>
+                </a>
+            `;
+            resultsList.appendChild(listItem);
+        });
+        searchResults.appendChild(resultsList);
+        searchResults.style.display = 'block';
+    } else {
+        searchResults.innerHTML = '<p>Tidak ada film yang ditemukan.</p>';
+        searchResults.style.display = 'block';
+    }
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', function(event) {
+    const searchResults = document.getElementById('search-results');
+    const searchForm = document.getElementById('search-form');
+    if (!searchForm.contains(event.target) && !searchResults.contains(event.target)) {
+        searchResults.style.display = 'none';
+    }
+});
+
+// Prevent form submission
+document.getElementById('search-form').addEventListener('submit', function(event) {
+    event.preventDefault();
+});
+
+document.getElementById('search-input').addEventListener('input', searchMovie);
+
