@@ -6,14 +6,56 @@ const products = [
     {
         id: 1,
         name: "Smartphone X",
-        price: 699.99,
+        price: 235.99,
         image: "https://via.placeholder.com/300x200",
         description: "Latest smartphone with amazing features"
     },
     {
         id: 2,
         name: "Laptop Pro",
-        price: 1299.99,
+        price: 1459.99,
+        image: "https://via.placeholder.com/300x200",
+        description: "Powerful laptop for professionals"
+    },
+    {
+        id: 3,
+        name: "Macbook",
+        price: 3249.99,
+        image: "https://via.placeholder.com/300x200",
+        description: "Powerful laptop for professionals"
+    },
+    {
+        id: 4,
+        name: "Redmi Note 11",
+        price: 1799.99,
+        image: "https://via.placeholder.com/300x200",
+        description: "Powerful laptop for professionals"
+    },
+    {
+        id: 5,
+        name: "Iphone 11",
+        price: 14699.99,
+        image: "https://via.placeholder.com/300x200",
+        description: "Latest smartphone with amazing features"
+    },
+    {
+        id: 6,
+        name: "Lenovo LOQ ",
+        price: 1399.00,
+        image: "https://via.placeholder.com/300x200",
+        description: "Powerful laptop for professionals"
+    },
+    {
+        id: 7,
+        name: "Laptop Pro",
+        price: 1221.99,
+        image: "https://via.placeholder.com/300x200",
+        description: "Powerful laptop for professionals"
+    },
+    {
+        id: 8,
+        name: "Laptop Pro",
+        price: 1314.99,
         image: "https://via.placeholder.com/300x200",
         description: "Powerful laptop for professionals"
     },
