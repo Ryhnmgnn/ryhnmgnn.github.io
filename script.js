@@ -1,3 +1,6 @@
+// API URL
+const API_URL = 'http://localhost:3000/api';
+
 // Sample products data (in a real application, this would come from a backend)
 const products = [
     {
@@ -18,8 +21,8 @@ const products = [
 ];
 
 // User authentication state
-let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
-let cart = JSON.parse(localStorage.getItem('cart')) || [];
+let currentUser = null;
+let cart = [];
 
 // DOM Elements
 const loginModal = document.getElementById('loginModal');
@@ -46,76 +49,178 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setupSettingsModal();
     initTheme();
-    checkUserSession(); // Check for existing session on page load
+    checkUserSession();
 });
 
-function checkUserSession() {
-    if (currentUser) {
-        // User is logged in, update UI
+async function checkUserSession() {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
         loginBtn.style.display = 'none';
         settingsBtn.style.display = 'inline';
         profileBtn.style.display = 'inline';
         loginBtn.textContent = `Welcome, ${currentUser.username}`;
+        
+        // Sync cart with server
+        try {
+            const response = await fetch(`${API_URL}/update-cart`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: currentUser.username,
+                    cart: currentUser.cart || []
+                })
+            });
+            const data = await response.json();
+            if (data.cart) {
+                cart = data.cart;
+                updateCart();
+            }
+        } catch (error) {
+            console.error('Error syncing cart:', error);
+        }
     }
 }
 
-function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    const user = users.find(u => u.username === username && u.password === password);
+    try {
+        // First try server login
+        const response = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
 
-    if (user) {
-        // Restore user's cart if it exists
-        if (user.cart) {
-            cart = user.cart;
+        const data = await response.json();
+
+        if (response.ok) {
+            currentUser = data.user;
+            cart = currentUser.cart || [];
+            
+            // Save user session
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            // Update UI
+            loginModal.style.display = 'none';
+            loginBtn.style.display = 'none';
+            settingsBtn.style.display = 'inline';
+            profileBtn.style.display = 'inline';
+            loginBtn.textContent = `Welcome, ${currentUser.username}`;
+            
             updateCart();
+            alert('Login successful!');
+        } else {
+            // If server login fails, try local storage login
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            const user = users.find(u => u.username === username && u.password === password);
+
+            if (user) {
+                // Restore user's cart if it exists
+                if (user.cart) {
+                    cart = user.cart;
+                }
+
+                // Load saved profile image if exists
+                const savedImage = localStorage.getItem(`profileImage_${username}`);
+                if (savedImage) {
+                    user.profileImage = savedImage;
+                }
+
+                // Set current user with all saved data
+                currentUser = {
+                    ...user,
+                    profileImage: user.profileImage || savedImage || 'https://via.placeholder.com/150',
+                    gender: user.gender || '',
+                    phone: user.phone || '',
+                    email: user.email || '',
+                    birthDate: user.birthDate || '',
+                    cart: user.cart || [],
+                    password: user.password
+                };
+
+                // Save current user
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                
+                // Update UI
+                loginModal.style.display = 'none';
+                loginBtn.style.display = 'none';
+                settingsBtn.style.display = 'inline';
+                profileBtn.style.display = 'inline';
+                loginBtn.textContent = `Welcome, ${user.username}`;
+                
+                updateCart();
+                alert('Login successful!');
+            } else {
+                alert('Invalid credentials!');
+            }
         }
+    } catch (error) {
+        console.error('Login error:', error);
+        // If server is not available, try local storage login
+        const users = JSON.parse(localStorage.getItem('users')) || [];
+        const user = users.find(u => u.username === username && u.password === password);
 
-        // Load saved profile image if exists
-        const savedImage = localStorage.getItem(`profileImage_${username}`);
-        if (savedImage) {
-            user.profileImage = savedImage;
+        if (user) {
+            // Restore user's cart if it exists
+            if (user.cart) {
+                cart = user.cart;
+            }
+
+            // Load saved profile image if exists
+            const savedImage = localStorage.getItem(`profileImage_${username}`);
+            if (savedImage) {
+                user.profileImage = savedImage;
+            }
+
+            // Set current user with all saved data
+            currentUser = {
+                ...user,
+                profileImage: user.profileImage || savedImage || 'https://via.placeholder.com/150',
+                gender: user.gender || '',
+                phone: user.phone || '',
+                email: user.email || '',
+                birthDate: user.birthDate || '',
+                cart: user.cart || [],
+                password: user.password
+            };
+
+            // Save current user
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            // Update UI
+            loginModal.style.display = 'none';
+            loginBtn.style.display = 'none';
+            settingsBtn.style.display = 'inline';
+            profileBtn.style.display = 'inline';
+            loginBtn.textContent = `Welcome, ${user.username}`;
+            
+            updateCart();
+            alert('Login successful!');
+        } else {
+            alert('Invalid credentials!');
         }
-
-        // Set current user with all saved data
-        currentUser = {
-            ...user,
-            profileImage: user.profileImage || savedImage || 'https://via.placeholder.com/150',
-            gender: user.gender || '',
-            phone: user.phone || '',
-            email: user.email || '',
-            birthDate: user.birthDate || '',
-            cart: user.cart || [],
-            password: user.password // Ensure password is included
-        };
-
-        // Save current user
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        // Update UI
-        loginModal.style.display = 'none';
-        loginBtn.style.display = 'none';
-        settingsBtn.style.display = 'inline';
-        profileBtn.style.display = 'inline';
-        loginBtn.textContent = `Welcome, ${user.username}`;
-        
-        alert('Login successful!');
-    } else {
-        alert('Invalid credentials!');
     }
 }
 
-function handleLogout() {
-    // Save cart to user data before logout
+async function handleLogout() {
     if (currentUser) {
-        const updatedUser = {
-            ...currentUser,
-            cart: cart
-        };
-        saveUserData(updatedUser);
+        try {
+            // Save cart to server before logout
+            await fetch(`${API_URL}/update-cart`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: currentUser.username,
+                    cart: cart
+                })
+            });
+        } catch (error) {
+            console.error('Error saving cart:', error);
+        }
     }
 
     currentUser = null;
@@ -137,35 +242,27 @@ function handleLogout() {
     alert('Logged out successfully!');
 }
 
-function saveUserData(userData) {
+async function saveUserData(userData) {
     try {
-        // Save to currentUser
-        localStorage.setItem('currentUser', JSON.stringify(userData));
-        
-        // Update in users array
-        const users = JSON.parse(localStorage.getItem('users')) || [];
-        const userIndex = users.findIndex(u => u.username === userData.username);
-        if (userIndex !== -1) {
-            // Preserve existing data and merge with updates
-            const existingUser = users[userIndex];
-            users[userIndex] = {
-                ...existingUser,
-                ...userData,
-                profileImage: userData.profileImage || existingUser.profileImage,
-                gender: userData.gender || existingUser.gender,
-                phone: userData.phone || existingUser.phone,
-                email: userData.email || existingUser.email,
-                birthDate: userData.birthDate || existingUser.birthDate,
-                cart: userData.cart || existingUser.cart,
-                lastUpdated: new Date().toISOString()
-            };
-            localStorage.setItem('users', JSON.stringify(users));
+        const response = await fetch(`${API_URL}/update-profile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: userData.username,
+                updates: userData
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Update local storage
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
+            currentUser = data.user;
+            return true;
+        } else {
+            throw new Error(data.message);
         }
-        
-        // Update currentUser variable
-        currentUser = userData;
-        
-        return true;
     } catch (error) {
         console.error('Error saving user data:', error);
         return false;
