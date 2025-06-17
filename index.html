@@ -557,6 +557,220 @@
         </div>
     </div>
 
+    <!-- Seller Store Modal -->
+    <div id="sellerStoreModal" class="modal">
+        <div class="modal-content seller-store-modal">
+            <span class="close">&times;</span>
+            <div class="store-header">
+                <div class="store-info-header">
+                    <h2 id="storeNameHeader">Store Name</h2>
+                    <div class="store-rating">
+                        <div class="stars">
+                            <span class="star" data-rating="1">★</span>
+                            <span class="star" data-rating="2">★</span>
+                            <span class="star" data-rating="3">★</span>
+                            <span class="star" data-rating="4">★</span>
+                            <span class="star" data-rating="5">★</span>
+                        </div>
+                        <span class="rating-text">(<span id="storeRatingCount">0</span> ratings)</span>
+                    </div>
+                    <div class="store-actions">
+                        <button id="likeStoreBtn" class="like-store-btn" onclick="toggleLikeStore()">
+                            <i class="fas fa-heart"></i> <span id="likeStoreText">Like Store</span>
+                        </button>
+                        <span class="likes-count">(<span id="storeLikesCount">0</span> likes)</span>
+                    </div>
+                </div>
+                <div class="store-details">
+                    <p id="storeDescription">Store description</p>
+                    <p><i class="fas fa-map-marker-alt"></i> <span id="storeAddress">Store address</span></p>
+                    <p><i class="fas fa-phone"></i> <span id="storePhone">Store phone</span></p>
+                </div>
+            </div>
+            
+            <div class="store-tabs">
+                <button class="store-tab-btn active" data-tab="products">Products</button>
+                <button class="store-tab-btn" data-tab="reviews">Reviews</button>
+                <button class="store-tab-btn" data-tab="about">About Store</button>
+            </div>
+            
+            <!-- Products Tab -->
+            <div id="store-products-tab" class="store-tab-content active">
+                <div class="store-products-grid" id="storeProductsGrid">
+                    <!-- Store products will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Reviews Tab -->
+            <div id="store-reviews-tab" class="store-tab-content">
+                <div class="reviews-summary">
+                    <div class="overall-rating">
+                        <div class="rating-big">
+                            <span id="overallRating">0.0</span>
+                        </div>
+                        <div class="rating-stars-big">
+                            <span class="star-big" data-rating="1">★</span>
+                            <span class="star-big" data-rating="2">★</span>
+                            <span class="star-big" data-rating="3">★</span>
+                            <span class="star-big" data-rating="4">★</span>
+                            <span class="star-big" data-rating="5">★</span>
+                        </div>
+                        <p>Based on <span id="totalReviews">0</span> reviews</p>
+                    </div>
+                </div>
+                <div class="reviews-list" id="storeReviewsList">
+                    <!-- Reviews will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- About Store Tab -->
+            <div id="store-about-tab" class="store-tab-content">
+                <div class="about-store-content">
+                    <h3>About This Store</h3>
+                    <p id="storeAboutDescription">Store description will be shown here.</p>
+                    
+                    <h3>Payment Methods</h3>
+                    <div id="storePaymentMethods" class="store-payment-methods">
+                        <!-- Payment methods will be shown here -->
+                    </div>
+                    
+                    <h3>Store Statistics</h3>
+                    <div class="store-stats">
+                        <div class="stat-item">
+                            <span class="stat-number" id="totalProducts">0</span>
+                            <span class="stat-label">Products</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="totalSales">0</span>
+                            <span class="stat-label">Sales</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="totalLikes">0</span>
+                            <span class="stat-label">Likes</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Detail Modal -->
+    <div id="productDetailModal" class="modal">
+        <div class="modal-content product-detail-modal">
+            <span class="close">&times;</span>
+            <div class="product-detail-container">
+                <div class="product-images">
+                    <img id="productDetailImage" src="" alt="Product Image" class="main-product-image">
+                </div>
+                
+                <div class="product-info">
+                    <h2 id="productDetailName">Product Name</h2>
+                    
+                    <div class="product-rating">
+                        <div class="product-stars">
+                            <span class="star" data-rating="1">★</span>
+                            <span class="star" data-rating="2">★</span>
+                            <span class="star" data-rating="3">★</span>
+                            <span class="star" data-rating="4">★</span>
+                            <span class="star" data-rating="5">★</span>
+                        </div>
+                        <span class="product-rating-text">(<span id="productRatingCount">0</span> ratings)</span>
+                    </div>
+                    
+                    <div class="product-price">
+                        <span class="price-amount" id="productDetailPrice">$0.00</span>
+                    </div>
+                    
+                    <div class="product-description">
+                        <h3>Description</h3>
+                        <p id="productDetailDescription">Product description will be shown here.</p>
+                    </div>
+                    
+                    <div class="product-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Stock:</span>
+                            <span class="detail-value" id="productDetailStock">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Category:</span>
+                            <span class="detail-value" id="productDetailCategory">Category</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Seller:</span>
+                            <span class="detail-value seller-link" id="productDetailSeller">Seller Name</span>
+                        </div>
+                    </div>
+                    
+                    <div class="seller-info">
+                        <h3>Seller Information</h3>
+                        <p><i class="fas fa-map-marker-alt"></i> <span id="productSellerAddress">Seller address</span></p>
+                        <p><i class="fas fa-phone"></i> <span id="productSellerPhone">Seller phone</span></p>
+                    </div>
+                    
+                    <div class="product-actions">
+                        <div class="quantity-selector">
+                            <label for="productQuantity">Quantity:</label>
+                            <input type="number" id="productQuantity" value="1" min="1" max="99">
+                        </div>
+                        <button class="add-to-cart-detail-btn" onclick="addToCartFromDetail()">
+                            <i class="fas fa-shopping-cart"></i> Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="product-reviews-section">
+                <h3>Product Reviews</h3>
+                <div class="product-reviews-list" id="productReviewsList">
+                    <!-- Product reviews will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Modal -->
+    <div id="reviewModal" class="modal">
+        <div class="modal-content review-modal">
+            <span class="close">&times;</span>
+            <h2>Write a Review</h2>
+            <form id="reviewForm">
+                <div class="review-product-info">
+                    <img id="reviewProductImage" src="" alt="Product" class="review-product-img">
+                    <div>
+                        <h3 id="reviewProductName">Product Name</h3>
+                        <p id="reviewProductPrice">$0.00</p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Rating</label>
+                    <div class="rating-input">
+                        <span class="rating-star" data-rating="1">★</span>
+                        <span class="rating-star" data-rating="2">★</span>
+                        <span class="rating-star" data-rating="3">★</span>
+                        <span class="rating-star" data-rating="4">★</span>
+                        <span class="rating-star" data-rating="5">★</span>
+                    </div>
+                    <span class="rating-text">Click to rate</span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reviewTitle">Review Title</label>
+                    <input type="text" id="reviewTitle" placeholder="Summarize your experience" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reviewComment">Review Comment</label>
+                    <textarea id="reviewComment" placeholder="Share your experience with this product" rows="4" required></textarea>
+                </div>
+                
+                <button type="submit" class="submit-review-btn">
+                    <i class="fas fa-paper-plane"></i> Submit Review
+                </button>
+            </form>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
