@@ -200,8 +200,303 @@
                 </div>
             </div>
 
+            <!-- Seller Registration Section -->
+            <div class="settings-section">
+                <h3>Become a Seller</h3>
+                <p>Start selling your products on our platform!</p>
+                <button id="becomeSellerBtn" class="become-seller-btn">
+                    <i class="fas fa-store"></i> Register as Seller
+                </button>
+            </div>
+
             <!-- Logout Button -->
             <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+    </div>
+
+    <!-- Seller Registration Modal -->
+    <div id="sellerRegistrationModal" class="modal">
+        <div class="modal-content seller-registration-modal">
+            <span class="close">&times;</span>
+            <h2>Seller Registration</h2>
+            <p class="registration-info">Complete the form below to become a seller and start selling your products.</p>
+            
+            <form id="sellerRegistrationForm">
+                <div class="form-group">
+                    <label for="storeName">Store Name *</label>
+                    <input type="text" id="storeName" required placeholder="Enter your store name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="sellerPhone">Phone Number *</label>
+                    <input type="tel" id="sellerPhone" required placeholder="Enter your phone number">
+                </div>
+                
+                <div class="form-group">
+                    <label for="sellerAddress">Complete Address *</label>
+                    <textarea id="sellerAddress" required placeholder="Enter your complete address" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ktpPhoto">KTP Photo *</label>
+                    <div class="file-upload-container">
+                        <input type="file" id="ktpPhoto" accept="image/*" required>
+                        <label for="ktpPhoto" class="file-upload-label">
+                            <i class="fas fa-upload"></i>
+                            <span>Choose KTP Photo</span>
+                        </label>
+                        <div id="ktpPreview" class="file-preview"></div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sellerDescription">Store Description</label>
+                    <textarea id="sellerDescription" placeholder="Tell customers about your store" rows="3"></textarea>
+                </div>
+                
+                <!-- Payment Methods Section -->
+                <div class="form-group">
+                    <label>Payment Methods *</label>
+                    <div class="payment-methods-container">
+                        <div class="payment-method-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="paymentBCA" checked>
+                                <span class="checkmark"></span>
+                                <i class="fas fa-university"></i> BCA Transfer
+                            </label>
+                            <input type="text" id="bcAccountNumber" placeholder="BCA Account Number" class="account-input">
+                        </div>
+                        <div class="payment-method-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="paymentMandiri" checked>
+                                <span class="checkmark"></span>
+                                <i class="fas fa-university"></i> Mandiri Transfer
+                            </label>
+                            <input type="text" id="mandiriAccountNumber" placeholder="Mandiri Account Number" class="account-input">
+                        </div>
+                        <div class="payment-method-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="paymentBNI">
+                                <span class="checkmark"></span>
+                                <i class="fas fa-university"></i> BNI Transfer
+                            </label>
+                            <input type="text" id="bniAccountNumber" placeholder="BNI Account Number" class="account-input">
+                        </div>
+                        <div class="payment-method-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="paymentBRI">
+                                <span class="checkmark"></span>
+                                <i class="fas fa-university"></i> BRI Transfer
+                            </label>
+                            <input type="text" id="briAccountNumber" placeholder="BRI Account Number" class="account-input">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="agreeTerms" required>
+                        <span class="checkmark"></span>
+                        I agree to the seller terms and conditions
+                    </label>
+                </div>
+                
+                <button type="submit" class="register-seller-btn">
+                    <i class="fas fa-store"></i> Register as Seller
+                </button>
+            </form>
+            
+            <div id="sellerRegistrationMessage" class="message"></div>
+        </div>
+    </div>
+
+    <!-- Seller Dashboard Modal -->
+    <div id="sellerDashboardModal" class="modal">
+        <div class="modal-content seller-dashboard-modal">
+            <span class="close">&times;</span>
+            <div class="dashboard-header">
+                <h2>Seller Dashboard</h2>
+                <div class="store-info">
+                    <h3 id="dashboardStoreName">Store Name</h3>
+                    <p id="dashboardStoreStatus">Status: <span class="status-active">Active</span></p>
+                </div>
+            </div>
+            
+            <div class="dashboard-tabs">
+                <button class="tab-btn active" data-tab="products">My Products</button>
+                <button class="tab-btn" data-tab="add-product">Add Product</button>
+                <button class="tab-btn" data-tab="orders">Orders</button>
+                <button class="tab-btn" data-tab="payments">Payment Methods</button>
+                <button class="tab-btn" data-tab="profile">Store Profile</button>
+            </div>
+            
+            <!-- Products Tab -->
+            <div id="products-tab" class="tab-content active">
+                <div class="tab-header">
+                    <h3>My Products</h3>
+                    <button class="add-product-btn" onclick="showAddProductTab()">
+                        <i class="fas fa-plus"></i> Add New Product
+                    </button>
+                </div>
+                <div id="sellerProductsList" class="seller-products-list">
+                    <!-- Products will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Add Product Tab -->
+            <div id="add-product-tab" class="tab-content">
+                <h3>Add New Product</h3>
+                <form id="addProductForm">
+                    <div class="form-group">
+                        <label for="productName">Product Name *</label>
+                        <input type="text" id="productName" required placeholder="Enter product name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="productPrice">Price *</label>
+                        <input type="number" id="productPrice" required placeholder="Enter price" min="0" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="productDescription">Description *</label>
+                        <textarea id="productDescription" required placeholder="Describe your product" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="productImage">Product Image *</label>
+                        <div class="file-upload-container">
+                            <input type="file" id="productImage" accept="image/*" required>
+                            <label for="productImage" class="file-upload-label">
+                                <i class="fas fa-upload"></i>
+                                <span>Choose Product Image</span>
+                            </label>
+                            <div id="productImagePreview" class="file-preview"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="productCategory">Category</label>
+                        <select id="productCategory">
+                            <option value="">Select category</option>
+                            <option value="electronics">Electronics</option>
+                            <option value="clothing">Clothing</option>
+                            <option value="books">Books</option>
+                            <option value="home">Home & Garden</option>
+                            <option value="sports">Sports</option>
+                            <option value="beauty">Beauty</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="productStock">Stock Quantity *</label>
+                        <input type="number" id="productStock" required placeholder="Enter stock quantity" min="0">
+                    </div>
+                    
+                    <button type="submit" class="add-product-submit-btn">
+                        <i class="fas fa-plus"></i> Add Product
+                    </button>
+                </form>
+                <div id="addProductMessage" class="message"></div>
+            </div>
+            
+            <!-- Orders Tab -->
+            <div id="orders-tab" class="tab-content">
+                <div class="tab-header">
+                    <h3>Orders</h3>
+                    <div class="order-filters">
+                        <select id="orderStatusFilter">
+                            <option value="all">All Orders</option>
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="sellerOrdersList" class="seller-orders-list">
+                    <p>No orders yet. Orders will appear here when customers purchase your products.</p>
+                </div>
+            </div>
+            
+            <!-- Payment Methods Tab -->
+            <div id="payments-tab" class="tab-content">
+                <h3>Payment Methods</h3>
+                <p class="payment-info">Configure which payment methods you want to accept from customers.</p>
+                
+                <form id="updatePaymentMethodsForm">
+                    <div class="payment-methods-container">
+                        <div class="payment-method-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="updatePaymentBCA">
+                                <span class="checkmark"></span>
+                                <i class="fas fa-university"></i> BCA Transfer
+                            </label>
+                            <input type="text" id="updateBcaAccountNumber" placeholder="BCA Account Number" class="account-input">
+                        </div>
+                        <div class="payment-method-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="updatePaymentMandiri">
+                                <span class="checkmark"></span>
+                                <i class="fas fa-university"></i> Mandiri Transfer
+                            </label>
+                            <input type="text" id="updateMandiriAccountNumber" placeholder="Mandiri Account Number" class="account-input">
+                        </div>
+                        <div class="payment-method-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="updatePaymentBNI">
+                                <span class="checkmark"></span>
+                                <i class="fas fa-university"></i> BNI Transfer
+                            </label>
+                            <input type="text" id="updateBniAccountNumber" placeholder="BNI Account Number" class="account-input">
+                        </div>
+                        <div class="payment-method-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="updatePaymentBRI">
+                                <span class="checkmark"></span>
+                                <i class="fas fa-university"></i> BRI Transfer
+                            </label>
+                            <input type="text" id="updateBriAccountNumber" placeholder="BRI Account Number" class="account-input">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="update-payment-btn">
+                        <i class="fas fa-save"></i> Update Payment Methods
+                    </button>
+                </form>
+                <div id="updatePaymentMessage" class="message"></div>
+            </div>
+            
+            <!-- Profile Tab -->
+            <div id="profile-tab" class="tab-content">
+                <h3>Store Profile</h3>
+                <form id="updateStoreProfileForm">
+                    <div class="form-group">
+                        <label for="updateStoreName">Store Name</label>
+                        <input type="text" id="updateStoreName" placeholder="Update store name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="updateStorePhone">Phone Number</label>
+                        <input type="tel" id="updateStorePhone" placeholder="Update phone number">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="updateStoreAddress">Address</label>
+                        <textarea id="updateStoreAddress" placeholder="Update address" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="updateStoreDescription">Store Description</label>
+                        <textarea id="updateStoreDescription" placeholder="Update store description" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="update-profile-btn">
+                        <i class="fas fa-save"></i> Update Profile
+                    </button>
+                </form>
+                <div id="updateProfileMessage" class="message"></div>
+            </div>
         </div>
     </div>
 
@@ -221,6 +516,44 @@
         <div class="cart-total">
             <h3>Total: $<span id="cartTotal">0.00</span></h3>
             <button onclick="checkout()">Checkout</button>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content payment-modal">
+            <span class="close">&times;</span>
+            <h2>Payment</h2>
+            <div class="payment-summary">
+                <h3>Order Summary</h3>
+                <div id="paymentOrderItems"></div>
+                <div class="payment-total">
+                    <strong>Total: $<span id="paymentTotal">0.00</span></strong>
+                </div>
+            </div>
+            
+            <div class="payment-methods-section">
+                <h3>Select Payment Method</h3>
+                <div id="availablePaymentMethods" class="available-payment-methods">
+                    <!-- Payment methods will be loaded here -->
+                </div>
+            </div>
+            
+            <div class="payment-instructions">
+                <h3>Payment Instructions</h3>
+                <div id="paymentInstructions" class="payment-instructions-content">
+                    <!-- Payment instructions will be shown here -->
+                </div>
+            </div>
+            
+            <div class="payment-actions">
+                <button id="confirmPaymentBtn" class="confirm-payment-btn" onclick="confirmPayment()">
+                    <i class="fas fa-check"></i> Confirm Payment
+                </button>
+                <button id="cancelPaymentBtn" class="cancel-payment-btn" onclick="cancelPayment()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
         </div>
     </div>
 
