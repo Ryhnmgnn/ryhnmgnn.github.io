@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Shop</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Running Text (Marquee) -->
+    <div class="running-text-container">
+        <marquee id="runningText" behavior="scroll" direction="left">Welcome to ShopNow! Enjoy our latest deals and discover products by category!</marquee>
+    </div>
+
+    <!-- Header Section -->
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <h1>ShopNow</h1>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search products...">
+                <button onclick="searchProducts()"><i class="fas fa-search"></i></button>
+            </div>
+            <div class="nav-links">
+                <a href="#" id="loginBtn">Login</a>
+                <a href="#" id="profileBtn" style="display: none;"><i class="fas fa-user"></i> Profile</a>
+                <a href="#" id="cartBtn">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span id="cartCount">0</span>
+                </a>
+                <div class="dropdown" id="categoryDropdown">
+                    <button class="dropdown-toggle" id="categoryToggle">Kategori <i class="fas fa-chevron-down"></i></button>
+                    <div class="dropdown-menu" id="categoryMenu">
+                        <a href="#" onclick="filterCategory('all')">All</a>
+                        <a href="#" onclick="filterCategory('electronics')">Electronics</a>
+                        <a href="#" onclick="filterCategory('fashion')">Fashion</a>
+                        <a href="#" onclick="filterCategory('home')">Home</a>
+                        <a href="#" onclick="filterCategory('beauty')">Beauty</a>
+                        <a href="#" onclick="filterCategory('sports')">Sports</a>
+                    </div>
+                </div>
+                <button id="menuToggle" class="menu-toggle" aria-label="Menu"><i class="fas fa-bars"></i></button>
+                <div id="mainMenu" class="main-menu">
+                    <a href="#" id="settingsBtn" style="display: none;"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#" id="contactUsBtn"><i class="fas fa-envelope"></i> Contact Us</a>
+                    <a href="#" id="addProductBtn"><i class="fas fa-plus"></i> Tambah Barang</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content profile-modal">
+            <span class="close">&times;</span>
+            <h2>Profile</h2>
+            <div class="profile-container">
+                <div class="profile-header">
+                    <div class="profile-image-container">
+                        <img id="profileImage" src="https://via.placeholder.com/150" alt="Profile Image">
+                        <div class="profile-image-overlay">
+                            <label for="imageUpload" class="upload-btn">
+                                <i class="fas fa-camera"></i>
+                            </label>
+                            <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                        </div>
+                    </div>
+                    <h3 id="profileUsername">Username</h3>
+                </div>
+                <form id="profileForm">
+                    <div class="form-group">
+                        <label for="profilePhone">Phone Number</label>
+                        <input type="tel" id="profilePhone" placeholder="Enter your phone number">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileEmail">Email</label>
+                        <input type="email" id="profileEmail" placeholder="Enter your email">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileGender">Gender</label>
+                        <select id="profileGender">
+                            <option value="">Select gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="profileBirthDate">Birth Date</label>
+                        <input type="date" id="profileBirthDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileAddress">Alamat Rumah</label>
+                        <textarea id="profileAddress" placeholder="Masukkan alamat rumah Anda"></textarea>
+                    </div>
+                    <div id="profileMessage"></div>
+                    <button type="submit" class="save-profile-btn">
+                        <i class="fas fa-save"></i> Save Profile
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Login</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit">Login</button>
+                <p>Don't have an account? <a href="#" id="registerLink">Register</a></p>
+                <p><a href="#" id="forgotPasswordLink">Forgot Password?</a></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Forgot Password</h2>
+            <form id="forgotPasswordForm">
+                <div class="form-group">
+                    <label for="forgotEmail">Email</label>
+                    <input type="email" id="forgotEmail" required>
+                </div>
+                <button type="submit" class="reset-password-btn">Send Reset Link</button>
+            </form>
+            <div id="forgotPasswordMessage" class="message"></div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Reset Password</h2>
+            <form id="resetPasswordForm">
+                <div class="form-group">
+                    <label for="resetCode">Verification Code</label>
+                    <input type="text" id="resetCode" required>
+                </div>
+                <div class="form-group">
+                    <label for="newResetPassword">New Password</label>
+                    <input type="password" id="newResetPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmResetPassword">Confirm New Password</label>
+                    <input type="password" id="confirmResetPassword" required>
+                </div>
+                <button type="submit" class="reset-password-btn">Reset Password</button>
+            </form>
+            <div id="resetPasswordMessage" class="message"></div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Register</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="regUsername">Username</label>
+                    <input type="text" id="regUsername" required>
+                </div>
+                <div class="form-group">
+                    <label for="regEmail">Email</label>
+                    <input type="email" id="regEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Password</label>
+                    <input type="password" id="regPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" required>
+                </div>
+                <button type="submit">Register</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Change Password</h2>
+            <form id="changePasswordForm">
+                <div class="form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmNewPassword">Confirm New Password</label>
+                    <input type="password" id="confirmNewPassword" required>
+                </div>
+                <button type="submit">Change Password</button>
+                <p id="changePasswordMessage" style="display: none; margin-top: 10px;"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content settings-modal">
+            <span class="close">&times;</span>
+            <h2>Settings</h2>
+            <!-- Tombol Admin Panel, hanya untuk user admin -->
+            <button id="openAdminPanelBtn" style="display:none;margin-bottom:15px"><i class="fas fa-user-shield"></i> Buka Admin Panel</button>
+            <!-- Theme Settings -->
+            <div class="settings-section">
+                <h3>Theme</h3>
+                <div class="theme-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="themeToggle">
+                        <span class="slider round"></span>
+                    </label>
+                    <span id="themeLabel">Light Mode</span>
+                </div>
+            </div>
+            <!-- Language Settings -->
+            <div class="settings-section">
+                <h3 id="languageLabel">Language</h3>
+                <select id="languageSelect">
+                    <option value="en">English</option>
+                    <option value="id">Bahasa Indonesia</option>
+                </select>
+            </div>
+            <!-- Logout Button -->
+            <button id="logoutBtn" class="logout-btn" style="display:none;">Logout</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main>
+        <section class="products-grid" id="productsContainer">
+            <!-- Products will be dynamically loaded here -->
+        </section>
+    </main>
+
+    <!-- Shopping Cart Sidebar -->
+    <div id="cartSidebar" class="cart-sidebar">
+        <button id="closeCartBtn" class="close-cart-btn" aria-label="Tutup Keranjang">&times;</button>
+        <h2>Shopping Cart</h2>
+        <div id="cartItems">
+            <!-- Cart items will be dynamically loaded here -->
+        </div>
+        <div class="cart-total">
+            <h3>Total: $<span id="cartTotal">0.00</span></h3>
+            <button onclick="checkout()">Checkout</button>
+        </div>
+    </div>
+
+    <!-- Contact Us Modal -->
+    <div id="contactUsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Contact Us</h2>
+            <form id="contactUsForm">
+                <div class="form-group">
+                    <label for="contactName">Name</label>
+                    <input type="text" id="contactName" required>
+                </div>
+                <div class="form-group">
+                    <label for="contactEmail">Email</label>
+                    <input type="email" id="contactEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="contactMessage">Message</label>
+                    <textarea id="contactMessage" rows="4" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Send via:</label>
+                    <select id="contactMethod">
+                        <option value="email">Email</option>
+                        <option value="whatsapp">WhatsApp</option>
+                    </select>
+                </div>
+                <button type="submit">Send Message</button>
+            </form>
+            <div id="contactUsMessage" class="message"></div>
+        </div>
+    </div>
+
+    <!-- Modal Tambah Barang (khusus penjual/admin) -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Tambah Barang</h2>
+            <form id="addProductForm">
+                <div class="form-group">
+                    <label for="productName">Nama Barang</label>
+                    <input type="text" id="productName" required>
+                </div>
+                <div class="form-group">
+                    <label for="productStock">Stok</label>
+                    <input type="number" id="productStock" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="productPrice">Harga</label>
+                    <input type="number" id="productPrice" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="productDescription">Deskripsi</label>
+                    <textarea id="productDescription" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="productWeight">Berat Barang (gram)</label>
+                    <input type="number" id="productWeight" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="sellerAddress">Alamat Penjual</label>
+                    <textarea id="sellerAddress" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Metode Pembayaran (aktifkan sesuai keinginan):</label>
+                    <div class="payment-methods">
+                        <label><input type="checkbox" id="payBCA" checked onchange="toggleRekInput('BCA')"> Bank BCA</label>
+                        <input type="text" id="rekBCA" class="rek-input" placeholder="No. Rekening BCA" style="display:block;margin-bottom:8px;">
+                        <label><input type="checkbox" id="payMandiri" checked onchange="toggleRekInput('Mandiri')"> Bank Mandiri</label>
+                        <input type="text" id="rekMandiri" class="rek-input" placeholder="No. Rekening Mandiri" style="display:block;margin-bottom:8px;">
+                        <label><input type="checkbox" id="payBNI" checked onchange="toggleRekInput('BNI')"> Bank BNI</label>
+                        <input type="text" id="rekBNI" class="rek-input" placeholder="No. Rekening BNI" style="display:block;margin-bottom:8px;">
+                        <label><input type="checkbox" id="payBRI" checked onchange="toggleRekInput('BRI')"> Bank BRI</label>
+                        <input type="text" id="rekBRI" class="rek-input" placeholder="No. Rekening BRI" style="display:block;margin-bottom:8px;">
+                        <label><input type="checkbox" id="payBSI" checked onchange="toggleRekInput('BSI')"> Bank BSI</label>
+                        <input type="text" id="rekBSI" class="rek-input" placeholder="No. Rekening BSI" style="display:block;margin-bottom:8px;">
+                        <label><input type="checkbox" id="payDKI" checked onchange="toggleRekInput('DKI')"> Bank DKI</label>
+                        <input type="text" id="rekDKI" class="rek-input" placeholder="No. Rekening DKI" style="display:block;margin-bottom:8px;">
+                    </div>
+                </div>
+                <button type="submit">Tambah Barang</button>
+            </form>
+            <div id="addProductMessage" class="message"></div>
+        </div>
+    </div>
+
+    <!-- Modal Upload Bukti Transfer -->
+    <div id="uploadProofModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Upload Bukti Transfer</h2>
+            <div id="paymentInstructions">
+                <!-- Instruksi pembayaran akan diisi via JS -->
+            </div>
+            <form id="uploadProofForm">
+                <div class="form-group">
+                    <label for="proofImage">Upload Bukti Transfer (jpg/png)</label>
+                    <input type="file" id="proofImage" accept="image/*" required>
+                </div>
+                <div class="form-group">
+                    <label for="proofNote">Catatan (opsional)</label>
+                    <textarea id="proofNote" placeholder="Catatan tambahan (opsional)"></textarea>
+                </div>
+                <div class="form-group syarat">
+                    <p><strong>Syarat & Ketentuan:</strong></p>
+                    <ul>
+                        <li>Transfer sesuai nominal total belanja.</li>
+                        <li>Upload bukti transfer yang jelas dan valid.</li>
+                        <li>Pastikan data pengiriman sudah benar.</li>
+                        <li>Barang akan dikirim setelah pembayaran terverifikasi.</li>
+                    </ul>
+                    <label><input type="checkbox" id="agreeTerms" required> Saya setuju dengan syarat & ketentuan di atas</label>
+                </div>
+                <button type="submit">Kirim Bukti Transfer</button>
+            </form>
+            <div id="uploadProofMessage" class="message"></div>
+        </div>
+    </div>
+
+    <!-- Modal Admin Panel -->
+    <div id="adminModal" class="modal">
+        <div class="modal-content admin-modal">
+            <span class="close">&times;</span>
+            <h2>Admin Panel - Verifikasi Bukti Transfer</h2>
+            <div id="adminProofList">
+                <!-- Daftar bukti transfer akan diisi via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script>
+      (function(){
+        emailjs.init('C51Cno0ULggxH5zUN');
+      })();
+    </script>
+    <script>
+    function toggleRekInput(bank) {
+        var cb = document.getElementById('pay'+bank);
+        var inp = document.getElementById('rek'+bank);
+        if(cb && inp) {
+            inp.style.display = cb.checked ? 'block' : 'none';
+        }
+    }
+    // Inisialisasi tampilan input rekening sesuai checkbox
+    ['BCA','Mandiri','BNI','BRI','BSI','DKI'].forEach(function(bank){toggleRekInput(bank);});
+    </script>
+
+<!-- Start of LiveChat (www.livechat.com) code -->
+<script>
+    window.__lc = window.__lc || {};
+    window.__lc.license = 19212906;
+    window.__lc.integration_name = "manual_channels";
+    window.__lc.product_name = "livechat";
+    ;(function(n,t,c){function i(n){return e._h?e._h.apply(null,n):e._q.push(n)}var e={_q:[],_h:null,_v:"2.0",on:function(){i(["on",c.call(arguments)])},once:function(){i(["once",c.call(arguments)])},off:function(){i(["off",c.call(arguments)])},get:function(){if(!e._h)throw new Error("[LiveChatWidget] You can't use getters before load.");return i(["get",c.call(arguments)])},call:function(){i(["call",c.call(arguments)])},init:function(){var n=t.createElement("script");n.async=!0,n.type="text/javascript",n.src="https://cdn.livechatinc.com/tracking.js",t.head.appendChild(n)}};!n.__lc.asyncInit&&e.init(),n.LiveChatWidget=n.LiveChatWidget||e}(window,document,[].slice))
+</script>
+<noscript><a href="https://www.livechat.com/chat-with/19212906/" rel="nofollow">Chat with us</a>, powered by <a href="https://www.livechat.com/?welcome" rel="noopener nofollow" target="_blank">LiveChat</a></noscript>
+<!-- End of LiveChat code -->
+
+
+</body>
+</html>
