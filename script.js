@@ -1866,7 +1866,7 @@ function addToCartFromWishlist(productId) {
     const wishlist = getWishlist();
     const product = wishlist.find(p => p.id === productId);
     if (product) {
-        addToCart(product);
+        addToCart(product.id); // Perbaiki: gunakan id, bukan objek
         removeFromWishlist(productId);
     }
 }
