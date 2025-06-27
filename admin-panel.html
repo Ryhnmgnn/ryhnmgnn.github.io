@@ -155,18 +155,41 @@
     }
     function saveProducts(products) {
         localStorage.setItem(PRODUCT_KEY, JSON.stringify(products));
+        localStorage.setItem('shopnow_products_update', Date.now());
+        notifyProductUpdate();
     }
-    function renderProductAdminList() {
+    function notifyProductUpdate() {
+        localStorage.setItem('shopnow_products_update', Date.now());
+        if (window.productChannel) {
+            window.productChannel.postMessage('update_products');
+        } else if ('BroadcastChannel' in window) {
+            const productChannel = new BroadcastChannel('shopnow_products_channel');
+            productChannel.postMessage('update_products');
+            productChannel.close();
+        }
+    }
+    function renderProductAdminList(filterStatus = 'all') {
         const products = getProducts();
+        let filteredProducts = products;
+        if (filterStatus === 'active') filteredProducts = products.filter(p => p.active !== false);
+        if (filterStatus === 'inactive') filteredProducts = products.filter(p => p.active === false);
         let html = '';
-        if (products.length === 0) {
-            html = '<p>Tidak ada produk.</p>';
+        html += `<div style="margin-bottom:1rem;">
+            <label for="filterProductStatus"><b>Filter Status:</b></label>
+            <select id="filterProductStatus" style="margin-left:8px;">
+                <option value="all">Semua</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+            </select>
+        </div>`;
+        if (filteredProducts.length === 0) {
+            html += '<p>Tidak ada produk.</p>';
         } else {
-            html = `<table class="admin-table">
+            html += `<table class="admin-table">
                 <thead><tr>
                     <th>Nama</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th>
                 </tr></thead><tbody>`;
-            products.forEach((p, i) => {
+            filteredProducts.forEach((p, i) => {
                 html += `<tr>
                     <td>${p.name}</td>
                     <td>${p.category || '-'}</td>
@@ -183,6 +206,14 @@
             html += '</tbody></table>';
         }
         document.getElementById('productAdminList').innerHTML = html;
+        // Event listener untuk filter
+        const filterSelect = document.getElementById('filterProductStatus');
+        if (filterSelect) {
+            filterSelect.value = filterStatus;
+            filterSelect.onchange = function() {
+                renderProductAdminList(this.value);
+            };
+        }
     }
     function renderProductAdminForm(editIdx = null) {
         let p = { name:'', category:'', price:'', stock:'', description:'', active:true };
@@ -225,13 +256,24 @@
         document.getElementById('adminProductForm').onsubmit = function(e) {
             e.preventDefault();
             const products = getProducts();
+            // Gabungkan dengan produk statis dari localStorage
+            let baseProducts = [];
+            try { baseProducts = JSON.parse(localStorage.getItem('base_products') || '[]'); } catch(e) {}
+            const allProducts = [...products, ...baseProducts];
+            const maxId = Math.max(0, ...allProducts.map(p => p.id || 0));
             const newProduct = {
+                id: maxId + 1,
                 name: document.getElementById('adminProductName').value.trim(),
                 category: document.getElementById('adminProductCategory').value.trim(),
                 price: Number(document.getElementById('adminProductPrice').value),
                 stock: Number(document.getElementById('adminProductStock').value),
                 description: document.getElementById('adminProductDesc').value.trim(),
-                active: document.getElementById('adminProductActive').value === 'true'
+                active: document.getElementById('adminProductActive').value === 'true',
+                image: 'https://via.placeholder.com/300x200',
+                sellerAddress: '',
+                payments: {},
+                rekenings: {},
+                weight: 0
             };
             if (editIdx !== null) {
                 products[editIdx] = { ...products[editIdx], ...newProduct };
@@ -239,6 +281,8 @@
                 products.push(newProduct);
             }
             saveProducts(products);
+            localStorage.setItem('shopnow_products_update', Date.now()); // Trigger event storage manual
+            console.log('Produk admin disimpan:', products);
             renderProductAdminList();
             renderProductAdminForm();
         };

@@ -108,7 +108,6 @@
                 <div id="mainMenu" class="main-menu">
                     <a href="#" id="settingsBtn" style="display: none;"><i class="fas fa-cog"></i> Settings</a>
                     <a href="#" id="contactUsBtn"><i class="fas fa-envelope"></i> Contact Us</a>
-                    <a href="#" id="addProductBtn"><i class="fas fa-plus"></i> Tambah Barang</a>
                 </div>
             </div>
         </nav>
@@ -592,6 +591,29 @@
 <noscript><a href="https://www.livechat.com/chat-with/19212906/" rel="nofollow">Chat with us</a>, powered by <a href="https://www.livechat.com/?welcome" rel="noopener nofollow" target="_blank">LiveChat</a></noscript>
 <!-- End of LiveChat code -->
 
+<script>
+// --- AUTO REFRESH PRODUK BERANDA ---
+let lastProductUpdate = localStorage.getItem('shopnow_products_update');
+setInterval(() => {
+    const currentUpdate = localStorage.getItem('shopnow_products_update');
+    if (currentUpdate !== lastProductUpdate) {
+        lastProductUpdate = currentUpdate;
+        if (typeof loadProducts === 'function') loadProducts();
+    }
+}, 2000);
+
+// --- OPSIONAL: BroadcastChannel untuk sinkronisasi produk antar tab ---
+if ('BroadcastChannel' in window) {
+    const productChannel = new BroadcastChannel('shopnow_products_channel');
+    productChannel.onmessage = (event) => {
+        if (event.data === 'update_products') {
+            if (typeof loadProducts === 'function') loadProducts();
+        }
+    };
+    // Simpan ke window agar bisa diakses global jika perlu
+    window.productChannel = productChannel;
+}
+</script>
 
 </body>
 </html>

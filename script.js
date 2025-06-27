@@ -1,66 +1,76 @@
 // API URL
 const API_URL = 'http://localhost:3000/api';
 
-// Sample products data (in a real application, this would come from a backend)
-const products = [
-    {
-        id: 1,
-        name: "Smartphone X",
-        price: 235.99,
-        image: "https://via.placeholder.com/300x200",
-        description: "Latest smartphone with amazing features"
-    },
-    {
-        id: 2,
-        name: "Laptop Pro",
-        price: 1459.99,
-        image: "https://via.placeholder.com/300x200",
-        description: "Powerful laptop for professionals"
-    },
-    {
-        id: 3,
-        name: "Macbook",
-        price: 3249.99,
-        image: "https://via.placeholder.com/300x200",
-        description: "Powerful laptop for professionals"
-    },
-    {
-        id: 4,
-        name: "Redmi Note 11",
-        price: 1799.99,
-        image: "https://via.placeholder.com/300x200",
-        description: "Powerful laptop for professionals"
-    },
-    {
-        id: 5,
-        name: "Iphone 11",
-        price: 14699.99,
-        image: "https://via.placeholder.com/300x200",
-        description: "Latest smartphone with amazing features"
-    },
-    {
-        id: 6,
-        name: "Lenovo LOQ ",
-        price: 1399.00,
-        image: "https://via.placeholder.com/300x200",
-        description: "Powerful laptop for professionals"
-    },
-    {
-        id: 7,
-        name: "Laptop Pro",
-        price: 1221.99,
-        image: "https://via.placeholder.com/300x200",
-        description: "Powerful laptop for professionals"
-    },
-    {
-        id: 8,
-        name: "Laptop Pro",
-        price: 1314.99,
-        image: "https://via.placeholder.com/300x200",
-        description: "Powerful laptop for professionals"
-    },
-    // Add more products as needed
-];
+// --- INISIALISASI PRODUK DARI LOCALSTORAGE ---
+let products = [];
+if (localStorage.getItem('base_products')) {
+    try {
+        products = JSON.parse(localStorage.getItem('base_products'));
+    } catch (e) {
+        products = [];
+    }
+} else {
+    products = [
+        {
+            id: 1,
+            name: "Smartphone X",
+            price: 235.99,
+            image: "https://via.placeholder.com/300x200",
+            description: "Latest smartphone with amazing features"
+        },
+        {
+            id: 2,
+            name: "Laptop Pro",
+            price: 1459.99,
+            image: "https://via.placeholder.com/300x200",
+            description: "Powerful laptop for professionals"
+        },
+        {
+            id: 3,
+            name: "Macbook",
+            price: 3249.99,
+            image: "https://via.placeholder.com/300x200",
+            description: "Powerful laptop for professionals"
+        },
+        {
+            id: 4,
+            name: "Redmi Note 11",
+            price: 1799.99,
+            image: "https://via.placeholder.com/300x200",
+            description: "Powerful laptop for professionals"
+        },
+        {
+            id: 5,
+            name: "Iphone 11",
+            price: 14699.99,
+            image: "https://via.placeholder.com/300x200",
+            description: "Latest smartphone with amazing features"
+        },
+        {
+            id: 6,
+            name: "Lenovo LOQ ",
+            price: 1399.00,
+            image: "https://via.placeholder.com/300x200",
+            description: "Powerful laptop for professionals"
+        },
+        {
+            id: 7,
+            name: "Laptop Pro",
+            price: 1221.99,
+            image: "https://via.placeholder.com/300x200",
+            description: "Powerful laptop for professionals"
+        },
+        {
+            id: 8,
+            name: "Laptop Pro",
+            price: 1314.99,
+            image: "https://via.placeholder.com/300x200",
+            description: "Powerful laptop for professionals"
+        }
+        // Add more products as needed
+    ];
+    localStorage.setItem('base_products', JSON.stringify(products));
+}
 
 // User authentication state
 let currentUser = null;
@@ -153,19 +163,28 @@ const translations = {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    if (logoutBtn) logoutBtn.style.display = 'none'; // Force hide logoutBtn on load
+    // --- AUTO-FIX: Pastikan semua produk admin punya field active: true jika belum ada ---
+    let adminProducts = [];
+    try { adminProducts = JSON.parse(localStorage.getItem('shopnow_products') || '[]'); } catch(e) {}
+    let changed = false;
+    adminProducts = adminProducts.map(p => {
+        if (typeof p.active === 'undefined') { p.active = true; changed = true; }
+        return p;
+    });
+    if (changed) {
+        localStorage.setItem('shopnow_products', JSON.stringify(adminProducts));
+    }
     loadProducts();
+    if (logoutBtn) logoutBtn.style.display = 'none'; // Force hide logoutBtn on load
     updateCartCount();
     setupEventListeners();
     setupSettingsModal();
     initTheme();
     checkUserSession();
-
     // Inisialisasi EmailJS dengan Public Key (API Key) yang benar
     if (typeof emailjs !== 'undefined' && emailjs.init) {
         emailjs.init('C51Cno0ULggxH5zUN'); // Public Key (API Key) dari EmailJS
     }
-
     // Attach Contact Us form event listener
     if (contactUsForm) {
         contactUsForm.onsubmit = function(e) {
@@ -175,13 +194,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const message = document.getElementById('contactMessage').value.trim();
             const method = document.getElementById('contactMethod').value;
             const devWhatsApp = '6288296742178';
-
             // Validasi
             if (!name || !email || !message) {
                 contactUsMessage.textContent = 'Semua field wajib diisi!';
                 return;
             }
-
             if (method === 'email') {
                 contactUsMessage.textContent = 'Mengirim pesan...';
                 contactUsForm.querySelector('button[type="submit"]').disabled = true;
@@ -198,19 +215,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, function(error) {
                     contactUsMessage.textContent = 'Gagal mengirim pesan. Pastikan koneksi internet stabil dan EmailJS sudah benar.';
                     contactUsForm.querySelector('button[type="submit"]').disabled = false;
-                    console.error('EmailJS error:', error);
                 });
             } else if (method === 'whatsapp') {
-                let waNumber = devWhatsApp;
-                if (waNumber.startsWith('0')) {
-                    waNumber = '62' + waNumber.slice(1);
-                }
-                const text = encodeURIComponent(`Contact Us - ShopNow\nName: ${name}\nEmail: ${email}\nMessage: ${message}`);
-                window.open(`https://wa.me/${waNumber}?text=${text}`);
-                contactUsMessage.textContent = 'Redirecting to WhatsApp...';
-                setTimeout(() => {
-                    contactUsModal.style.display = 'none';
-                }, 2000);
+                window.open('https://wa.me/' + devWhatsApp + '?text=' + encodeURIComponent(message), '_blank');
             }
         };
     }
@@ -461,29 +468,21 @@ async function handleLogout() {
 }
 
 async function saveUserData(userData) {
-    try {
-        const response = await fetch(`${API_URL}/update-profile`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                username: userData.username,
-                updates: userData
-            })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            // Update local storage
-            localStorage.setItem('currentUser', JSON.stringify(data.user));
-            currentUser = data.user;
-            return true;
-        } else {
-            throw new Error(data.message);
-        }
-    } catch (error) {
-        console.error('Error saving user data:', error);
-        return false;
+    if (!userData || !userData.username) return;
+    // Update currentUser di localStorage
+    localStorage.setItem('currentUser', JSON.stringify(userData));
+    // Update array users di localStorage
+    let users = JSON.parse(localStorage.getItem('users') || '[]');
+    const idx = users.findIndex(u => u.username === userData.username);
+    if (idx !== -1) {
+        users[idx] = { ...users[idx], ...userData, cart: userData.cart || [] };
+    } else {
+        users.push({ ...userData, cart: userData.cart || [] });
+    }
+    localStorage.setItem('users', JSON.stringify(users));
+    // Simpan cart juga ke cart_{username}
+    if (userData.cart) {
+        localStorage.setItem(`cart_${userData.username}`, JSON.stringify(userData.cart));
     }
 }
 
@@ -559,33 +558,50 @@ function setupPasswordChange() {
 
 // Product Functions
 function loadProducts() {
-    productsContainer.innerHTML = products.map(product => `
-        <div class="product-card">
-            <img src="${product.image}" alt="${product.name}" class="product-image">
-            <div class="product-info">
-                <h3 class="product-title">${product.name}</h3>
-                <p class="product-price">$${product.price.toFixed(2)}</p>
-                <p class="product-stock">Stok: ${product.stock !== undefined ? product.stock : 'N/A'}</p>
-                <p class="product-weight">Berat: ${product.weight !== undefined ? product.weight + ' gram' : 'N/A'}</p>
-                <p class="product-seller">Alamat Penjual: ${product.sellerAddress ? product.sellerAddress : 'N/A'}</p>
-                <p class="product-description">${product.description}</p>
-                <div class="product-payments">
-                    <span>Metode Pembayaran: </span>
-                    ${product.payments ? Object.entries(product.payments).filter(([key, val]) => val).map(([key]) => `<span class='payment-badge'>${key}</span>`).join(' ') : 'N/A'}
+    const allProducts = getAllProducts();
+    console.log('loadProducts() dipanggil, hasil getAllProducts:', allProducts);
+    if (!productsContainer) {
+        console.error('productsContainer tidak ditemukan!');
+        return;
+    }
+    productsContainer.innerHTML = allProducts.map(product => {
+        // Fallback untuk field penting
+        const id = product.id || Math.random();
+        const name = product.name || 'Tanpa Nama';
+        const price = product.price !== undefined ? product.price : 0;
+        const stock = product.stock !== undefined ? product.stock : 'N/A';
+        const weight = product.weight !== undefined ? product.weight : 'N/A';
+        const sellerAddress = product.sellerAddress || 'N/A';
+        const description = product.description || '';
+        const image = product.image || 'https://via.placeholder.com/300x200';
+        const payments = product.payments ? Object.entries(product.payments).filter(([key, val]) => val).map(([key]) => `<span class='payment-badge'>${key}</span>`).join(' ') : 'N/A';
+        return `
+            <div class="product-card">
+                <img src="${image}" alt="${name}" class="product-image">
+                <div class="product-info">
+                    <h3 class="product-title">${name}</h3>
+                    <p class="product-price">Rp${Number(price).toLocaleString()}</p>
+                    <p class="product-stock">Stok: ${stock}</p>
+                    <p class="product-weight">Berat: ${weight} gram</p>
+                    <p class="product-seller">Alamat Penjual: ${sellerAddress}</p>
+                    <p class="product-description">${description}</p>
+                    <div class="product-payments">
+                        <span>Metode Pembayaran: </span>
+                        ${payments}
+                    </div>
+                    <button class="add-to-cart" onclick="addToCart(${id})">Add to Cart</button>
                 </div>
-                <button class="add-to-cart" onclick="addToCart(${product.id})">Add to Cart</button>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function searchProducts() {
     const searchTerm = searchInput.value.toLowerCase();
-    const filteredProducts = products.filter(product =>
+    const filteredProducts = getAllProducts().filter(product =>
         product.name.toLowerCase().includes(searchTerm) ||
         product.description.toLowerCase().includes(searchTerm)
     );
-
     productsContainer.innerHTML = filteredProducts.map(product => `
         <div class="product-card">
             <img src="${product.image}" alt="${product.name}" class="product-image">
@@ -604,10 +620,12 @@ function addToCart(productId) {
         alert('Please login to add items to cart');
         return;
     }
-
-    const product = products.find(p => p.id === productId);
+    const product = getAllProducts().find(p => p.id === productId);
+    if (!product) {
+        alert('Produk tidak ditemukan!');
+        return;
+    }
     const existingItem = cart.find(item => item.productId === productId);
-
     if (existingItem) {
         existingItem.quantity += 1;
     } else {
@@ -619,16 +637,10 @@ function addToCart(productId) {
             image: product.image
         });
     }
-
-    // Save cart to user's data
     if (currentUser) {
-        const updatedUser = {
-            ...currentUser,
-            cart: cart
-        };
-        saveUserData(updatedUser);
+        currentUser.cart = cart;
+        saveUserData(currentUser);
     }
-
     updateCart();
     alert('Product added to cart!');
 }
@@ -655,13 +667,12 @@ function updateCart() {
     setCart(cart);
     updateCartCount();
     updateCartDisplay();
-    // Jika user login, update currentUser.cart juga
     if (currentUser) {
         currentUser.cart = cart;
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        // Force save cart to localStorage for mobile persistence
         localStorage.setItem(`cart_${currentUser.username}`, JSON.stringify(cart));
-        backupCartToServer(); // backup otomatis
+        saveUserData(currentUser);
+        backupCartToServer();
     }
 }
 
@@ -1190,6 +1201,12 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        loadProducts();
+    }
+});
+
 function setupEventListeners() {
     // Login/Register Modal Events
     loginBtn.addEventListener('click', () => loginModal.style.display = 'block');
@@ -1312,9 +1329,16 @@ function setupEventListeners() {
                     return;
                 }
             }
-            // Tambahkan produk ke array products
+            // Ambil produk admin dari localStorage
+            let adminProducts = JSON.parse(localStorage.getItem('shopnow_products') || '[]');
+            // Buat id unik (max id + 1)
+            const maxId = Math.max(
+                ...products.map(p => p.id),
+                ...adminProducts.map(p => p.id),
+                0
+            );
             const newProduct = {
-                id: products.length + 1,
+                id: maxId + 1,
                 name,
                 stock,
                 price,
@@ -1325,7 +1349,8 @@ function setupEventListeners() {
                 rekenings,
                 image: 'https://via.placeholder.com/300x200'
             };
-            products.push(newProduct);
+            adminProducts.push(newProduct);
+            localStorage.setItem('shopnow_products', JSON.stringify(adminProducts));
             loadProducts();
             addProductMessage.textContent = 'Barang berhasil ditambahkan!';
             setTimeout(() => {
@@ -1857,9 +1882,12 @@ function renderProducts() {
     const productsContainer = document.getElementById('productsContainer');
     if (!productsContainer) return;
     let html = '';
-    (products || []).forEach(product => {
-        html += `<div class='product-card' style='position:relative;'>
-            <span class='wishlist-icon${isInWishlist(product.id) ? ' active' : ''}' onclick='toggleWishlist(${JSON.stringify(product).replace(/'/g,"&#39;")})'>
+    getAllProducts().forEach(product => {
+        // Rata-rata rating
+        const reviews = getProductReviews(product.id);
+        const avgRating = reviews.length ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '-';
+        html += `<div class='product-card' style='position:relative;cursor:pointer;' onclick='showProductDetail(${JSON.stringify(product).replace(/'/g,"&#39;")})'>
+            <span class='wishlist-icon${isInWishlist(product.id) ? ' active' : ''}' onclick='event.stopPropagation();toggleWishlist(${JSON.stringify(product).replace(/'/g,"&#39;")})'>
                 <i class='fas fa-heart'></i>
             </span>
             <img src='${product.image || 'https://via.placeholder.com/300x200'}' alt='${product.name}' class='product-img'>
@@ -1867,7 +1895,10 @@ function renderProducts() {
                 <h3 class='product-title'>${product.name}</h3>
                 <p class='product-price'>Rp${Number(product.price).toLocaleString()}</p>
                 <p class='product-desc'>${product.description || ''}</p>
-                <button class='add-to-cart-btn' onclick='addToCart(${JSON.stringify(product).replace(/'/g,"&#39;")})'>Add to Cart</button>
+                <div style='color:#e67e22;font-size:0.98rem;margin-bottom:2px;'>
+                    <i class='fas fa-star'></i> ${avgRating} (${reviews.length})
+                </div>
+                <button class='add-to-cart' onclick='event.stopPropagation();addToCart(${product.id})'>Add to Cart</button>
             </div>
         </div>`;
     });
@@ -2091,7 +2122,7 @@ function renderProductDetail(product) {
             <div style='margin-bottom:0.5rem;'>Stok: ${product.stock || '-'}</div>
             <div style='margin-bottom:0.5rem;'>Berat: ${product.weight || '-'} gram</div>
             <div style='margin-bottom:0.5rem;'>Alamat Penjual: ${product.sellerAddress || '-'}</div>
-            <button class='add-to-cart-btn' onclick='addToCart(${product.id})'>Add to Cart</button>
+            <button class='add-to-cart' onclick='addToCart(${product.id})'>Add to Cart</button>
         </div>
     </div><hr style='margin:1.2rem 0;'>`;
     
@@ -2195,7 +2226,7 @@ function renderProducts() {
     if (!productsContainer) return;
     
     let html = '';
-    (products || []).forEach(product => {
+    getAllProducts().forEach(product => {
         // Rata-rata rating
         const reviews = getProductReviews(product.id);
         const avgRating = reviews.length ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '-';
@@ -2212,7 +2243,7 @@ function renderProducts() {
                 <div style='color:#e67e22;font-size:0.98rem;margin-bottom:2px;'>
                     <i class='fas fa-star'></i> ${avgRating} (${reviews.length})
                 </div>
-                <button class='add-to-cart-btn' onclick='event.stopPropagation();addToCart(${product.id})'>Add to Cart</button>
+                <button class='add-to-cart' onclick='event.stopPropagation();addToCart(${product.id})'>Add to Cart</button>
             </div>
         </div>`;
     });
@@ -2229,5 +2260,27 @@ window.addEventListener('DOMContentLoaded', function() {
     if (productDetailModal) {
         const closeBtn = productDetailModal.querySelector('.close');
         if (closeBtn) closeBtn.onclick = function() { productDetailModal.style.display = 'none'; };
+    }
+});
+
+// Ambil produk dari localStorage (admin panel)
+function getAdminProducts() {
+    return JSON.parse(localStorage.getItem('shopnow_products') || '[]');
+}
+// Gabungkan produk bawaan dan produk admin
+function getAllProducts() {
+    const adminProducts = getAdminProducts().filter(p => p.active !== false);
+    let baseProducts = [];
+    try { baseProducts = JSON.parse(localStorage.getItem('base_products') || '[]'); } catch(e) {}
+    // Pastikan tidak ada ID yang sama, adminProducts prioritas
+    const baseProductsFiltered = baseProducts.filter(p => !adminProducts.some(ap => ap.id === p.id));
+    return [...adminProducts, ...baseProductsFiltered];
+}
+
+// Auto-refresh produk di beranda jika ada perubahan dari admin panel (tab lain)
+window.addEventListener('storage', function(e) {
+    if (e.key === 'shopnow_products' || e.key === 'shopnow_products_update') {
+        console.log('Perubahan produk admin terdeteksi, reload produk...');
+        loadProducts();
     }
 });
