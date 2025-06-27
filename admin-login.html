@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - ShopNow</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f5f6fa; }
+        .admin-login-container { background: #fff; padding: 2rem 2.5rem; border-radius: 12px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); width: 100%; max-width: 400px; }
+        .admin-login-container h2 { text-align: center; margin-bottom: 1.5rem; }
+        .admin-login-container .form-group { margin-bottom: 1.2rem; }
+        .admin-login-container label { display: block; margin-bottom: 0.5rem; }
+        .admin-login-container input { width: 100%; padding: 0.7rem; border: 1px solid #ccc; border-radius: 6px; }
+        .admin-login-container button { width: 100%; padding: 0.8rem; background: #2d8cff; color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+        .admin-login-container button:hover { background: #1a6ed8; }
+        .admin-login-container .message { margin-top: 1rem; text-align: center; color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="admin-login-container">
+        <h2><i class="fas fa-user-shield"></i> Admin Login</h2>
+        <form id="adminLoginForm">
+            <div class="form-group">
+                <label for="adminUsername">Username</label>
+                <input type="text" id="adminUsername" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="adminPassword">Password</label>
+                <input type="password" id="adminPassword" required autocomplete="current-password">
+            </div>
+            <button type="submit">Login</button>
+        </form>
+        <div class="message" id="adminLoginMessage"></div>
+    </div>
+    <script>
+    // Demo admin: admin / admin123
+    const ADMIN_KEY = 'shopnow_admins';
+    // Inisialisasi admin default jika belum ada
+    if (!localStorage.getItem(ADMIN_KEY)) {
+        localStorage.setItem(ADMIN_KEY, JSON.stringify([
+            { username: 'admin', password: 'admin123', role: 'superadmin', active: true }
+        ]));
+    }
+    document.getElementById('adminLoginForm').onsubmit = function(e) {
+        e.preventDefault();
+        const username = document.getElementById('adminUsername').value.trim();
+        const password = document.getElementById('adminPassword').value;
+        const admins = JSON.parse(localStorage.getItem(ADMIN_KEY) || '[]');
+        const found = admins.find(a => a.username === username && a.password === password && a.active);
+        if (found) {
+            localStorage.setItem('shopnow_admin_loggedin', JSON.stringify(found));
+            window.location.href = 'admin-panel.html';
+        } else {
+            document.getElementById('adminLoginMessage').textContent = 'Username atau password salah, atau akun nonaktif.';
+        }
+    };
+    </script>
+</body>
+</html> 

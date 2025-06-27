@@ -275,9 +275,9 @@ function setCart(cartArr) {
     localStorage.setItem(getCartKey(), JSON.stringify(cartArr));
 }
 function getWishlist() {
-    const key = getWishlistKey();
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    if (!user) return [];
+    return JSON.parse(localStorage.getItem(`wishlist_${user.username}`) || '[]');
 }
 function setWishlist(wishlist) {
     localStorage.setItem(getWishlistKey(), JSON.stringify(wishlist));
@@ -676,7 +676,7 @@ function updateCartDisplay() {
     const cartTotal = document.getElementById('cartTotal');
     if (cart.length === 0) {
         cartItems.innerHTML = '<div class="cart-empty">Keranjang kosong. <br> Tambahkan produk ke keranjang.</div>';
-        cartTotal.textContent = '0.00';
+        cartTotal.textContent = 'Rp0';
         return;
     }
     cartItems.innerHTML = cart.map(item => `
@@ -689,13 +689,13 @@ function updateCartDisplay() {
                     <span class="cart-qty">${item.quantity}</span>
                     <button class="cart-qty-btn" onclick="changeCartQty(${item.productId}, 1)">+</button>
                 </div>
-                <p class="cart-item-price">$${item.price.toFixed(2)} x ${item.quantity} = <b>$${(item.price*item.quantity).toFixed(2)}</b></p>
+                <p class="cart-item-price">Rp${Number(item.price).toLocaleString()} x ${item.quantity} = <b>Rp${Number(item.price * item.quantity).toLocaleString()}</b></p>
                 <button class="cart-remove-btn" onclick="removeFromCart(${item.productId})">Hapus</button>
             </div>
         </div>
     `).join('');
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    cartTotal.textContent = total.toFixed(2);
+    cartTotal.textContent = 'Rp' + total.toLocaleString();
 }
 
 function changeCartQty(productId, delta) {
@@ -721,120 +721,155 @@ function toggleCart() {
     }
 }
 
-// Fungsi untuk menampilkan instruksi pembayaran
-function showPaymentInstructions(paymentList, total) {
-    // Ambil produk pertama di cart sebagai referensi penjual (asumsi satu penjual per produk)
-    let rekeningInfo = '';
-    cart.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (product && product.payments && product.rekenings) {
-            paymentList.forEach(bank => {
-                if (product.payments[bank] && product.rekenings[bank]) {
-                    rekeningInfo += `<li>${bank}: <strong>${product.rekenings[bank]}</strong></li>`;
+// --- Promo Code Functions ---
+function validatePromo(code, total) {
+    // Sample promo codes (in real app, this would come from backend)
+    const promoCodes = [
+        { code: 'WELCOME10', discount: 10, minPurchase: 100000, type: 'percentage' },
+        { code: 'DISKON50K', discount: 50000, minPurchase: 200000, type: 'fixed' },
+        { code: 'HEMAT25', discount: 25, minPurchase: 150000, type: 'percentage' }
+    ];
+    
+    const promo = promoCodes.find(p => p.code.toUpperCase() === code.toUpperCase());
+    if (!promo) {
+        return { valid: false, message: 'Kode promo tidak valid!' };
+    }
+    
+    if (total < promo.minPurchase) {
+        return { valid: false, message: `Minimal pembelian Rp${promo.minPurchase.toLocaleString()} untuk kode ini!` };
+    }
+    
+    return { valid: true, promo };
+}
+
+function applyPromo(promo, total) {
+    if (promo.type === 'percentage') {
+        return (total * promo.discount) / 100;
+    } else {
+        return Math.min(promo.discount, total);
+    }
+}
+
+// --- Checkout Modal Logic ---
+window.addEventListener('DOMContentLoaded', function() {
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    const checkoutModal = document.getElementById('checkoutModal');
+    const checkoutForm = document.getElementById('checkoutForm');
+    const checkoutAddress = document.getElementById('checkoutAddress');
+    const checkoutPayment = document.getElementById('checkoutPayment');
+    const checkoutTotal = document.getElementById('checkoutTotal');
+    const checkoutDiscount = document.getElementById('checkoutDiscount');
+    const checkoutPromo = document.getElementById('checkoutPromo');
+    const checkoutMessage = document.getElementById('checkoutMessage');
+    const closeBtns = checkoutModal ? checkoutModal.querySelectorAll('.close') : [];
+    let appliedPromo = null;
+    if (checkoutBtn && checkoutModal && checkoutForm) {
+        checkoutBtn.onclick = function() {
+            if (!currentUser) {
+                alert('Silakan login untuk checkout!');
+                return;
+            }
+            if (!cart || cart.length === 0) {
+                alert('Keranjang belanja kosong!');
+                return;
+            }
+            checkoutAddress.value = currentUser.address || '';
+            const settings = JSON.parse(localStorage.getItem('shopnow_settings') || '{}');
+            const payments = (settings.paymentMethods || []).filter(m => m.active);
+            checkoutPayment.innerHTML = payments.length ? payments.map(m => `<option value="${m.bank}">${m.bank} (${m.number})</option>`).join('') : '<option value="">Tidak ada metode pembayaran</option>';
+            const total = cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+            checkoutTotal.textContent = 'Rp' + total.toLocaleString();
+            checkoutDiscount.textContent = '';
+            checkoutPromo.value = '';
+            appliedPromo = null;
+            checkoutModal.style.display = 'block';
+            checkoutMessage.textContent = '';
+        };
+        closeBtns.forEach(btn => btn.onclick = () => { checkoutModal.style.display = 'none'; });
+        // Promo code validation on blur
+        if (checkoutPromo) {
+            checkoutPromo.onblur = function() {
+                const code = checkoutPromo.value.trim();
+                const total = cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+                if (!code) {
+                    checkoutDiscount.textContent = '';
+                    appliedPromo = null;
+                    return;
                 }
-            });
+                const result = validatePromo(code, total);
+                if (result.valid) {
+                    const discount = applyPromo(result.promo, total);
+                    checkoutDiscount.textContent = `Diskon: -Rp${discount.toLocaleString()} (${result.promo.code})`;
+                    appliedPromo = { ...result.promo, discount };
+                } else {
+                    checkoutDiscount.textContent = result.message;
+                    appliedPromo = null;
+                }
+            };
+        }
+        // Submit checkout
+        checkoutForm.onsubmit = function(e) {
+            e.preventDefault();
+            if (!checkoutAddress.value.trim()) {
+                checkoutMessage.textContent = 'Alamat pengiriman wajib diisi!';
+                return;
+            }
+            if (!checkoutPayment.value) {
+                checkoutMessage.textContent = 'Pilih metode pembayaran!';
+                return;
+            }
+            const total = cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+            let discount = 0;
+            let promoCode = '';
+            if (appliedPromo) {
+                discount = appliedPromo.discount;
+                promoCode = appliedPromo.code;
+            }
+            const finalTotal = Math.max(0, total - discount);
+            let invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
+            const invoiceId = 'INV' + Date.now();
+            const invoice = {
+                id: invoiceId,
+                username: currentUser.username,
+                address: checkoutAddress.value.trim(),
+                paymentMethod: checkoutPayment.value,
+                total: finalTotal,
+                discount,
+                promoCode,
+                status: 'Belum Bayar',
+                time: new Date().toLocaleString(),
+                items: cart.map(item => ({...item}))
+            };
+            invoices.push(invoice);
+            localStorage.setItem('shopnow_invoices', JSON.stringify(invoices));
+            cart = [];
+            updateCart();
+            checkoutModal.style.display = 'none';
+            showPaymentInstructions([{bank: invoice.paymentMethod}], finalTotal, invoiceId);
+            if (uploadProofModal) uploadProofModal.style.display = 'block';
+        };
+    }
+});
+// --- Ubah showPaymentInstructions agar bisa menerima invoiceId dan nomor rekening dari pengaturan toko ---
+function showPaymentInstructions(paymentList, total, invoiceId) {
+    // Ambil nomor rekening dari pengaturan toko
+    const settings = JSON.parse(localStorage.getItem('shopnow_settings') || '{}');
+    let rekeningInfo = '';
+    paymentList.forEach(obj => {
+        const bank = typeof obj === 'string' ? obj : obj.bank;
+        const m = (settings.paymentMethods || []).find(x => x.bank === bank);
+        if (m && m.active && m.number) {
+            rekeningInfo += `<li>${bank}: <strong>${m.number}</strong></li>`;
         }
     });
     if (!rekeningInfo) rekeningInfo = '<li>Tidak ada rekening penjual yang tersedia.</li>';
     paymentInstructions.innerHTML = `
         <p><strong>Instruksi Pembayaran:</strong></p>
-        <ul>
-            ${rekeningInfo}
-        </ul>
-        <p><strong>Total yang harus ditransfer: $${total}</strong></p>
+        <ul>${rekeningInfo}</ul>
+        <p><strong>Total yang harus ditransfer: Rp${Number(total).toLocaleString()}</strong></p>
+        <p><strong>ID Invoice:</strong> ${invoiceId || '-'}</p>
         <p>Setelah transfer, upload bukti transfer di bawah ini.</p>
     `;
-}
-
-// Modifikasi checkout agar setelah checkout, tampilkan modal upload bukti transfer
-function checkout() {
-    if (!currentUser) {
-        alert('Please login to checkout');
-        return;
-    }
-
-    if (cart.length === 0) {
-        alert('Your cart is empty!');
-        return;
-    }
-
-    let address = '';
-    if (currentUser && currentUser.address) {
-        address = currentUser.address;
-    } else {
-        address = localStorage.getItem('guestAddress') || '';
-    }
-    if (!address) {
-        alert('Silakan isi alamat rumah Anda di profil sebelum checkout!');
-        return;
-    }
-
-    // Ambil semua metode pembayaran aktif dari produk di cart
-    let paymentOptions = new Set();
-    cart.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (product && product.payments) {
-            Object.entries(product.payments).forEach(([key, val]) => {
-                if (val) paymentOptions.add(key);
-            });
-        }
-    });
-    if (paymentOptions.size === 0) paymentOptions.add('Transfer Bank');
-    const paymentList = Array.from(paymentOptions);
-
-    // Hitung total
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2);
-
-    // Tampilkan modal upload bukti transfer
-    if (uploadProofModal) {
-        showPaymentInstructions(paymentList, total);
-        uploadProofModal.style.display = 'block';
-    }
-    // Reset cart, update tampilan
-    cart = [];
-    updateCart();
-    cartSidebar.classList.remove('active');
-}
-
-// Logika submit form upload bukti transfer
-if (uploadProofForm) {
-    uploadProofForm.onsubmit = function(e) {
-        e.preventDefault();
-        uploadProofMessage.textContent = '';
-        if (!agreeTerms.checked) {
-            uploadProofMessage.textContent = 'Anda harus menyetujui syarat & ketentuan.';
-            return;
-        }
-        if (!proofImage.files || proofImage.files.length === 0) {
-            uploadProofMessage.textContent = 'Silakan upload bukti transfer.';
-            return;
-        }
-        const file = proofImage.files[0];
-        if (!file.type.startsWith('image/')) {
-            uploadProofMessage.textContent = 'File harus berupa gambar.';
-            return;
-        }
-        // Simpan data ke localStorage
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const proofData = {
-                id: Date.now(),
-                username: currentUser ? currentUser.username : 'guest',
-                note: document.getElementById('proofNote').value,
-                image: event.target.result, // base64
-                status: 'Menunggu Verifikasi',
-                time: new Date().toLocaleString(),
-                invoiceSent: false
-            };
-            // Simpan ke localStorage
-            let proofs = JSON.parse(localStorage.getItem('proofs') || '[]');
-            proofs.push(proofData);
-            localStorage.setItem('proofs', JSON.stringify(proofs));
-            uploadProofMessage.textContent = 'Bukti transfer berhasil dikirim! Penjual akan memproses pengiriman ke alamat Anda.';
-            uploadProofForm.reset();
-        };
-        reader.readAsDataURL(file);
-    };
 }
 
 // Remove Gmail Authentication Functions
@@ -952,17 +987,14 @@ function handleImageUpload(e) {
                 showMessage(document.getElementById('profileMessage'), 'Please select a JPG or PNG image file', 'error');
                 return;
             }
-
             // Validate file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
                 showMessage(document.getElementById('profileMessage'), 'Image size should be less than 5MB', 'error');
                 return;
             }
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 const imageData = e.target.result;
-                
                 // Update user data with new image
                 const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
                 if (user) {
@@ -971,16 +1003,21 @@ function handleImageUpload(e) {
                         profileImage: imageData,
                         lastUpdated: new Date().toISOString()
                     };
-                    
                     // Save to both currentUser and users array
-                    if (saveUserData(updatedUser)) {
-                        // Update the image display
-                        document.getElementById('profileImage').src = imageData;
-                        showMessage(document.getElementById('profileMessage'), 'Profile image updated successfully!', 'success');
-                        
-                        // Save image data to localStorage separately for redundancy
-                        localStorage.setItem(`profileImage_${user.username}`, imageData);
+                    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+                    let users = JSON.parse(localStorage.getItem('users')) || [];
+                    const idx = users.findIndex(u => u.username === updatedUser.username);
+                    if (idx !== -1) {
+                        users[idx] = { ...users[idx], ...updatedUser };
+                    } else {
+                        users.push(updatedUser);
                     }
+                    localStorage.setItem('users', JSON.stringify(users));
+                    // Update the image display
+                    document.getElementById('profileImage').src = imageData;
+                    showMessage(document.getElementById('profileMessage'), 'Profile image updated successfully!', 'success');
+                    // Save image data to localStorage separately for redundancy
+                    localStorage.setItem(`profileImage_${user.username}`, imageData);
                 }
             };
             reader.onerror = function() {
@@ -989,7 +1026,6 @@ function handleImageUpload(e) {
             reader.readAsDataURL(file);
         }
     } catch (error) {
-        console.error('Error uploading image:', error);
         showMessage(document.getElementById('profileMessage'), 'Error uploading image', 'error');
     }
 }
@@ -1040,8 +1076,6 @@ function handleProfileUpdate(e) {
             users.push(updatedUser);
         }
         localStorage.setItem('users', JSON.stringify(users));
-        // Save to server jika ada
-        if (typeof saveUserData === 'function') saveUserData(updatedUser);
         messageElement.style.display = 'block';
         messageElement.className = 'message-animation success';
         messageElement.innerHTML = `
@@ -1613,3 +1647,587 @@ function applyTranslation() {
     const languageSelect = document.getElementById('languageSelect');
     if (languageSelect) languageSelect.value = lang;
 }
+
+// Order History Functions
+function renderOrderHistory() {
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    const orderHistoryList = document.getElementById('orderHistoryList');
+    if (!user) {
+        orderHistoryList.innerHTML = '<p>Silakan login untuk melihat riwayat pesanan.</p>';
+        return;
+    }
+    const invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
+    const myOrders = invoices.filter(inv => inv.username === user.username);
+    if (myOrders.length === 0) {
+        orderHistoryList.innerHTML = '<p>Belum ada riwayat pesanan.</p>';
+        return;
+    }
+    let html = `<table style='width:100%;border-collapse:collapse;background:#fff;'>
+        <thead><tr style='background:#f0f4fa;'>
+            <th>ID</th><th>Tanggal</th><th>Total</th><th>Status</th><th>Bukti</th><th>Detail</th>
+        </tr></thead><tbody>`;
+    myOrders.forEach((inv, i) => {
+        html += `<tr>
+            <td>${inv.id || '-'}</td>
+            <td>${inv.time || '-'}</td>
+            <td>Rp${Number(inv.total || 0).toLocaleString()}</td>
+            <td><span style='font-weight:bold;color:${orderStatusColor(inv.status)}'>${inv.status || '-'}</span></td>
+            <td>${inv.proofImage ? `<img src='${inv.proofImage}' style='max-width:50px;max-height:50px;border-radius:4px;'>` : '-'}</td>
+            <td><button onclick='showOrderDetail(${JSON.stringify(inv).replace(/'/g,"&#39;")})' style='padding:2px 8px;border-radius:4px;background:#636e72;color:#fff;border:none;cursor:pointer;'>Detail</button></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    orderHistoryList.innerHTML = html;
+}
+function orderStatusColor(status) {
+    if (!status) return '#888';
+    if (status === 'Belum Bayar') return '#e67e22';
+    if (status === 'Menunggu Verifikasi') return '#2980b9';
+    if (status === 'Diterima') return '#27ae60';
+    if (status === 'Ditolak') return '#c0392b';
+    return '#888';
+}
+function showOrderDetail(inv) {
+    let itemsHtml = '';
+    if (inv.items && inv.items.length) {
+        itemsHtml = `<table style='width:100%;margin-bottom:10px;border-collapse:collapse;'>
+            <thead><tr style='background:#f0f4fa;'><th>Produk</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead><tbody>`;
+        inv.items.forEach(item => {
+            itemsHtml += `<tr>
+                <td>${item.name || '-'}</td>
+                <td>${item.quantity || 1}</td>
+                <td>Rp${Number(item.price).toLocaleString()}</td>
+                <td>Rp${Number((item.price * (item.quantity || 1))).toLocaleString()}</td>
+            </tr>`;
+        });
+        itemsHtml += '</tbody></table>';
+    }
+    let html = `<h3>Detail Pesanan</h3>
+        <p><b>ID:</b> ${inv.id || '-'}</p>
+        <p><b>Tanggal:</b> ${inv.time || '-'}</p>
+        <p><b>Status:</b> <span style='font-weight:bold;color:${orderStatusColor(inv.status)}'>${inv.status || '-'}</span></p>
+        <p><b>Alamat Pengiriman:</b> ${inv.address || '-'}</p>
+        <p><b>Metode Pembayaran:</b> ${inv.paymentMethod || '-'}</p>
+        <hr>
+        ${itemsHtml}
+        <p><b>Total:</b> Rp${Number(inv.total || 0).toLocaleString()}</p>
+        <p><b>Catatan:</b> ${inv.note || '-'}</p>
+        <p><b>Bukti Transfer:</b><br>${inv.proofImage ? `<img src='${inv.proofImage}' style='max-width:200px;max-height:200px;border-radius:8px;'>` : '-'}</p>
+        <button onclick='printInvoice(${JSON.stringify(inv).replace(/'/g,"&#39;")})' style='margin-top:10px;padding:6px 18px;border-radius:6px;background:#2d8cff;color:#fff;border:none;cursor:pointer;'><i class='fas fa-print'></i> Print/Download Invoice</button>
+        <button onclick='closeOrderDetail()' style='margin-top:10px;margin-left:10px;padding:6px 18px;border-radius:6px;background:#636e72;color:#fff;border:none;cursor:pointer;'>Tutup</button>`;
+    showOrderModal(html);
+}
+window.printInvoice = function(inv) {
+    let itemsHtml = '';
+    if (inv.items && inv.items.length) {
+        itemsHtml = `<table style='width:100%;margin-bottom:10px;border-collapse:collapse;'>
+            <thead><tr><th>Produk</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead><tbody>`;
+        inv.items.forEach(item => {
+            itemsHtml += `<tr>
+                <td>${item.name || '-'}</td>
+                <td>${item.quantity || 1}</td>
+                <td>Rp${Number(item.price).toLocaleString()}</td>
+                <td>Rp${Number((item.price * (item.quantity || 1))).toLocaleString()}</td>
+            </tr>`;
+        });
+        itemsHtml += '</tbody></table>';
+    }
+    const win = window.open('', '', 'width=700,height=800');
+    win.document.write(`
+        <html><head><title>Invoice ${inv.id}</title></head><body style='font-family:sans-serif;'>
+        <h2>INVOICE</h2>
+        <p><b>ID:</b> ${inv.id || '-'}</p>
+        <p><b>Tanggal:</b> ${inv.time || '-'}</p>
+        <p><b>Status:</b> ${inv.status || '-'}</p>
+        <p><b>Alamat Pengiriman:</b> ${inv.address || '-'}</p>
+        <p><b>Metode Pembayaran:</b> ${inv.paymentMethod || '-'}</p>
+        <hr>
+        ${itemsHtml}
+        <p><b>Total:</b> Rp${Number(inv.total || 0).toLocaleString()}</p>
+        <p><b>Catatan:</b> ${inv.note || '-'}</p>
+        <p><b>Bukti Transfer:</b><br>${inv.proofImage ? `<img src='${inv.proofImage}' style='max-width:200px;max-height:200px;border-radius:8px;'>` : '-'}</p>
+        <hr><p>Terima kasih telah berbelanja di ShopNow!</p>
+        </body></html>
+    `);
+    win.document.close();
+    win.print();
+};
+function showOrderModal(html) {
+    let modal = document.getElementById('orderDetailPopup');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'orderDetailPopup';
+        modal.style.position = 'fixed';
+        modal.style.left = '0';
+        modal.style.top = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+        modal.style.background = 'rgba(0,0,0,0.25)';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '9999';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `<div style="background:#fff;padding:2rem 2.5rem;border-radius:12px;max-width:400px;min-width:280px;position:relative;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+        <button onclick="closeOrderDetail()" style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.3rem;cursor:pointer;">&times;</button>
+        ${html}
+    </div>`;
+    modal.style.display = 'flex';
+}
+function closeOrderDetail() {
+    let modal = document.getElementById('orderDetailPopup');
+    if (modal) modal.style.display = 'none';
+}
+// Event listeners untuk order history
+window.addEventListener('DOMContentLoaded', function() {
+    const orderHistoryBtn = document.getElementById('orderHistoryBtn');
+    const orderHistoryModal = document.getElementById('orderHistoryModal');
+    if (orderHistoryBtn && orderHistoryModal) {
+        orderHistoryBtn.onclick = function() {
+            renderOrderHistory();
+            orderHistoryModal.style.display = 'block';
+        };
+        // Close modal
+        orderHistoryModal.querySelector('.close').onclick = function() {
+            orderHistoryModal.style.display = 'none';
+        };
+    }
+});
+
+// Wishlist Functions
+function saveWishlist(wishlist) {
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    if (!user) return;
+    localStorage.setItem(`wishlist_${user.username}`, JSON.stringify(wishlist));
+}
+function isInWishlist(productId) {
+    return getWishlist().some(p => p.id === productId);
+}
+function toggleWishlist(product) {
+    let wishlist = getWishlist();
+    const idx = wishlist.findIndex(p => p.id === product.id);
+    if (idx !== -1) {
+        wishlist.splice(idx, 1);
+    } else {
+        wishlist.push(product);
+    }
+    saveWishlist(wishlist);
+    renderProducts();
+}
+function renderWishlist() {
+    const wishlistList = document.getElementById('wishlistList');
+    const wishlist = getWishlist();
+    if (!wishlist.length) {
+        wishlistList.innerHTML = '<p>Wishlist kosong.</p>';
+        return;
+    }
+    wishlistList.innerHTML = wishlist.map(product => `
+        <div class='wishlist-product-card'>
+            <img src='${product.image || 'https://via.placeholder.com/70'}' class='wishlist-product-img'>
+            <div class='wishlist-product-info'>
+                <div class='wishlist-product-title'>${product.name}</div>
+                <div class='wishlist-product-price'>Rp${Number(product.price).toLocaleString()}</div>
+                <div>${product.category || ''}</div>
+            </div>
+            <div class='wishlist-product-actions'>
+                <button class='wishlist-btn' onclick='addToCartFromWishlist(${product.id})'><i class="fas fa-cart-plus"></i> Tambah ke Keranjang</button>
+                <button class='wishlist-btn remove' onclick='removeFromWishlist(${product.id})'><i class="fas fa-trash"></i> Hapus</button>
+            </div>
+        </div>
+    `).join('');
+}
+function addToCartFromWishlist(productId) {
+    const wishlist = getWishlist();
+    const product = wishlist.find(p => p.id === productId);
+    if (product) {
+        addToCart(product);
+        removeFromWishlist(productId);
+    }
+}
+function removeFromWishlist(productId) {
+    let wishlist = getWishlist();
+    wishlist = wishlist.filter(p => p.id !== productId);
+    saveWishlist(wishlist);
+    renderWishlist();
+    renderProducts();
+}
+// Render wishlist icon on products
+function renderProducts() {
+    const productsContainer = document.getElementById('productsContainer');
+    if (!productsContainer) return;
+    let html = '';
+    (products || []).forEach(product => {
+        html += `<div class='product-card' style='position:relative;'>
+            <span class='wishlist-icon${isInWishlist(product.id) ? ' active' : ''}' onclick='toggleWishlist(${JSON.stringify(product).replace(/'/g,"&#39;")})'>
+                <i class='fas fa-heart'></i>
+            </span>
+            <img src='${product.image || 'https://via.placeholder.com/300x200'}' alt='${product.name}' class='product-img'>
+            <div class='product-info'>
+                <h3 class='product-title'>${product.name}</h3>
+                <p class='product-price'>Rp${Number(product.price).toLocaleString()}</p>
+                <p class='product-desc'>${product.description || ''}</p>
+                <button class='add-to-cart-btn' onclick='addToCart(${JSON.stringify(product).replace(/'/g,"&#39;")})'>Add to Cart</button>
+            </div>
+        </div>`;
+    });
+    productsContainer.innerHTML = html;
+}
+// Event listeners untuk wishlist
+window.addEventListener('DOMContentLoaded', function() {
+    const wishlistBtn = document.getElementById('wishlistBtn');
+    const wishlistModal = document.getElementById('wishlistModal');
+    if (wishlistBtn && wishlistModal) {
+        wishlistBtn.onclick = function() {
+            renderWishlist();
+            wishlistModal.style.display = 'block';
+        };
+        // Close modal
+        wishlistModal.querySelector('.close').onclick = function() {
+            wishlistModal.style.display = 'none';
+        };
+    }
+    // Render products with wishlist icon on load
+    renderProducts();
+});
+
+// Notifikasi User Functions
+function getNotifications() {
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    if (!user) return [];
+    return JSON.parse(localStorage.getItem(`notifications_${user.username}`) || '[]');
+}
+function saveNotifications(notifs) {
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    if (!user) return;
+    localStorage.setItem(`notifications_${user.username}`, JSON.stringify(notifs));
+}
+function addNotification(type, message, data) {
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    if (!user) return;
+    let notifs = getNotifications();
+    notifs.unshift({
+        id: Date.now(),
+        type,
+        message,
+        data: data || null,
+        read: false,
+        time: new Date().toLocaleString()
+    });
+    saveNotifications(notifs);
+    updateNotifBadge();
+}
+function markNotifAsRead(id) {
+    let notifs = getNotifications();
+    notifs = notifs.map(n => n.id === id ? { ...n, read: true } : n);
+    saveNotifications(notifs);
+    renderNotifList();
+    updateNotifBadge();
+}
+function markAllNotifAsRead() {
+    let notifs = getNotifications();
+    notifs = notifs.map(n => ({ ...n, read: true }));
+    saveNotifications(notifs);
+    renderNotifList();
+    updateNotifBadge();
+}
+function updateNotifBadge() {
+    const notifBtn = document.getElementById('notifBtn');
+    const notifBadge = document.getElementById('notifBadge');
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    if (!user) {
+        notifBtn.style.display = 'none';
+        return;
+    }
+    notifBtn.style.display = 'inline';
+    const notifs = getNotifications();
+    const unread = notifs.filter(n => !n.read).length;
+    if (unread > 0) {
+        notifBadge.textContent = unread;
+        notifBadge.style.display = 'inline';
+    } else {
+        notifBadge.style.display = 'none';
+    }
+}
+function renderNotifList() {
+    const notifList = document.getElementById('notifList');
+    const notifs = getNotifications();
+    if (!notifs.length) {
+        notifList.innerHTML = '<p>Tidak ada notifikasi.</p>';
+        return;
+    }
+    notifList.innerHTML = `<button onclick='markAllNotifAsRead()' style='margin-bottom:10px;padding:4px 12px;border-radius:6px;background:#2d8cff;color:#fff;border:none;cursor:pointer;'>Tandai semua sudah dibaca</button>` +
+        notifs.map(n => `
+        <div style='background:${n.read ? '#f7f7f7' : '#e8f5e9'};border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;'>
+            <div style='flex:1;'>
+                <b>${n.type === 'invoice' ? 'Pesanan' : 'Info'}</b> - ${n.message}<br>
+                <small>${n.time}</small>
+            </div>
+            ${!n.read ? `<button onclick='markNotifAsRead(${n.id})' style='margin-left:10px;padding:2px 10px;border-radius:5px;background:#27ae60;color:#fff;border:none;cursor:pointer;'>Tandai dibaca</button>` : ''}
+        </div>
+    `).join('');
+}
+// Cek perubahan status invoice user untuk notifikasi
+function checkInvoiceNotifications() {
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    if (!user) return;
+    const invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
+    const notifs = getNotifications();
+    const lastNotifStatus = {};
+    notifs.forEach(n => {
+        if (n.data && n.data.invoiceId) {
+            lastNotifStatus[n.data.invoiceId] = n.data.status;
+        }
+    });
+    invoices.filter(inv => inv.username === user.username).forEach(inv => {
+        if (!lastNotifStatus[inv.id] || lastNotifStatus[inv.id] !== inv.status) {
+            if (inv.status && inv.status !== 'Belum Bayar') {
+                addNotification('invoice', `Status pesanan #${inv.id} kini: ${inv.status}`, { invoiceId: inv.id, status: inv.status });
+            }
+        }
+    });
+}
+// Event listeners untuk notifikasi
+window.addEventListener('DOMContentLoaded', function() {
+    const notifBtn = document.getElementById('notifBtn');
+    const notifModal = document.getElementById('notifModal');
+    if (notifBtn && notifModal) {
+        notifBtn.onclick = function() {
+            renderNotifList();
+            notifModal.style.display = 'block';
+            updateNotifBadge();
+        };
+        notifModal.querySelector('.close').onclick = function() {
+            notifModal.style.display = 'none';
+        };
+    }
+    updateNotifBadge();
+    checkInvoiceNotifications();
+});
+
+// Logika submit form upload bukti transfer
+if (uploadProofForm) {
+    uploadProofForm.onsubmit = function(e) {
+        e.preventDefault();
+        uploadProofMessage.textContent = '';
+        if (!agreeTerms.checked) {
+            uploadProofMessage.textContent = 'Anda harus menyetujui syarat & ketentuan.';
+            return;
+        }
+        if (!proofImage.files || proofImage.files.length === 0) {
+            uploadProofMessage.textContent = 'Silakan upload bukti transfer.';
+            return;
+        }
+        const file = proofImage.files[0];
+        if (!file.type.match('image/(jpeg|png|jpg)')) {
+            uploadProofMessage.textContent = 'File harus berupa gambar JPG/PNG.';
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            uploadProofMessage.textContent = 'Ukuran gambar maksimal 5MB.';
+            return;
+        }
+        // Simpan data ke invoice terkait
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            // Cari invoice terakhir milik user yang statusnya "Belum Bayar"
+            let invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
+            const user = currentUser;
+            const idx = invoices.findIndex(inv => inv.username === user.username && inv.status === 'Belum Bayar');
+            if (idx === -1) {
+                uploadProofMessage.textContent = 'Tidak ditemukan invoice yang sesuai.';
+                return;
+            }
+            invoices[idx].proofImage = event.target.result;
+            invoices[idx].note = document.getElementById('proofNote').value;
+            invoices[idx].status = 'Menunggu Verifikasi';
+            localStorage.setItem('shopnow_invoices', JSON.stringify(invoices));
+            // Notifikasi user
+            addNotification('invoice', `Bukti transfer untuk pesanan #${invoices[idx].id} berhasil diupload. Menunggu verifikasi admin.`, { invoiceId: invoices[idx].id, status: 'Menunggu Verifikasi' });
+            uploadProofMessage.textContent = 'Bukti transfer berhasil dikirim! Menunggu verifikasi admin.';
+            uploadProofForm.reset();
+            setTimeout(() => {
+                uploadProofModal.style.display = 'none';
+                uploadProofMessage.textContent = '';
+            }, 2000);
+        };
+        reader.onerror = function() {
+            uploadProofMessage.textContent = 'Gagal membaca file gambar.';
+        };
+        reader.readAsDataURL(file);
+    };
+}
+
+// --- Review Produk ---
+function getProductReviews(productId) {
+    return JSON.parse(localStorage.getItem(`reviews_${productId}`) || '[]');
+}
+function saveProductReviews(productId, reviews) {
+    localStorage.setItem(`reviews_${productId}`, JSON.stringify(reviews));
+}
+function userCanReview(productId) {
+    if (!currentUser) return false;
+    const invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
+    return invoices.some(inv => inv.username === currentUser.username && inv.items && inv.items.some(item => item.id === productId) && inv.status === 'Diterima');
+}
+function getUserReview(productId) {
+    if (!currentUser) return null;
+    const reviews = getProductReviews(productId);
+    return reviews.find(r => r.username === currentUser.username) || null;
+}
+function renderProductDetail(product) {
+    const modal = document.getElementById('productDetailModal');
+    const content = document.getElementById('productDetailContent');
+    if (!modal || !content) return;
+    
+    // Info produk
+    let html = `<div style='display:flex;gap:1.5rem;align-items:flex-start;'>
+        <img src='${product.image || 'https://via.placeholder.com/200x150'}' style='width:180px;height:130px;object-fit:cover;border-radius:8px;border:1px solid #eee;'>
+        <div style='flex:1;'>
+            <h2 style='margin:0 0 0.5rem 0;'>${product.name}</h2>
+            <div style='color:#e74c3c;font-weight:600;font-size:1.2rem;'>Rp${Number(product.price).toLocaleString()}</div>
+            <div style='margin:0.5rem 0;'>${product.description || ''}</div>
+            <div style='margin-bottom:0.5rem;'>Kategori: ${product.category || '-'}</div>
+            <div style='margin-bottom:0.5rem;'>Stok: ${product.stock || '-'}</div>
+            <div style='margin-bottom:0.5rem;'>Berat: ${product.weight || '-'} gram</div>
+            <div style='margin-bottom:0.5rem;'>Alamat Penjual: ${product.sellerAddress || '-'}</div>
+            <button class='add-to-cart-btn' onclick='addToCart(${product.id})'>Add to Cart</button>
+        </div>
+    </div><hr style='margin:1.2rem 0;'>`;
+    
+    // Review section
+    const reviews = getProductReviews(product.id);
+    const avgRating = reviews.length ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '-';
+    html += `<div><h3>Ulasan Produk <span style='font-size:1rem;color:#e67e22;'>&#9733; ${avgRating}</span> (${reviews.length})</h3>`;
+    
+    if (reviews.length) {
+        html += reviews.map(r => `
+            <div style='border-bottom:1px solid #eee;padding:8px 0;'>
+                <b>${r.username}</b> <span style='color:#e67e22;'>&#9733; ${r.rating}</span><br>
+                <span style='font-size:0.97rem;'>${r.comment}</span>
+                ${currentUser && r.username === currentUser.username ? `<br><button onclick='editReview(${product.id})' style='font-size:0.9rem;margin-right:8px;'>Edit</button><button onclick='deleteReview(${product.id})' style='font-size:0.9rem;'>Hapus</button>` : ''}
+            </div>
+        `).join('');
+    } else {
+        html += '<p>Belum ada ulasan.</p>';
+    }
+    html += '</div>';
+    
+    // Form review
+    if (currentUser) {
+        const userReview = getUserReview(product.id);
+        if (userCanReview(product.id)) {
+            html += `<hr><div><h4>${userReview ? 'Edit Ulasan Anda' : 'Tulis Ulasan'}</h4>
+                <form id='reviewForm'>
+                    <label>Rating: <select id='reviewRating'>
+                        <option value='5'>5</option>
+                        <option value='4'>4</option>
+                        <option value='3'>3</option>
+                        <option value='2'>2</option>
+                        <option value='1'>1</option>
+                    </select></label><br>
+                    <textarea id='reviewComment' placeholder='Tulis komentar Anda' required style='width:100%;margin-top:6px;'>${userReview ? userReview.comment : ''}</textarea><br>
+                    <button type='submit' class='save-profile-btn' style='background:#e67e22;margin-top:8px;'>${userReview ? 'Update' : 'Kirim'} Ulasan</button>
+                </form>
+                <div id='reviewMsg' style='margin-top:8px;'></div>
+            </div>`;
+        } else {
+            html += `<hr><div><i>Anda hanya bisa memberi ulasan jika sudah membeli produk ini dan pesanan sudah diterima.</i></div>`;
+        }
+    }
+    
+    content.innerHTML = html;
+    modal.style.display = 'block';
+    
+    // Set rating jika edit
+    if (currentUser && userCanReview(product.id)) {
+        const userReview = getUserReview(product.id);
+        if (userReview) {
+            setTimeout(() => {
+                const ratingSelect = document.getElementById('reviewRating');
+                if (ratingSelect) ratingSelect.value = userReview.rating;
+            }, 100);
+        }
+        
+        // Form submit
+        const reviewForm = document.getElementById('reviewForm');
+        if (reviewForm) {
+            reviewForm.onsubmit = function(e) {
+                e.preventDefault();
+                const rating = parseInt(document.getElementById('reviewRating').value);
+                const comment = document.getElementById('reviewComment').value.trim();
+                if (!rating || !comment) {
+                    document.getElementById('reviewMsg').textContent = 'Rating dan komentar wajib diisi!';
+                    return;
+                }
+                let reviews = getProductReviews(product.id);
+                const idx = reviews.findIndex(r => r.username === currentUser.username);
+                if (idx !== -1) {
+                    reviews[idx] = { ...reviews[idx], rating, comment };
+                } else {
+                    reviews.push({ username: currentUser.username, rating, comment });
+                }
+                saveProductReviews(product.id, reviews);
+                document.getElementById('reviewMsg').textContent = 'Ulasan berhasil disimpan!';
+                setTimeout(() => { renderProductDetail(product); }, 1000);
+            };
+        }
+    }
+}
+
+window.editReview = function(productId) {
+    const product = (products || []).find(p => p.id === productId);
+    if (product) renderProductDetail(product);
+};
+
+window.deleteReview = function(productId) {
+    if (!currentUser) return;
+    let reviews = getProductReviews(productId);
+    reviews = reviews.filter(r => r.username !== currentUser.username);
+    saveProductReviews(productId, reviews);
+    const product = (products || []).find(p => p.id === productId);
+    if (product) renderProductDetail(product);
+};
+
+// --- Buka modal detail produk saat klik produk ---
+function renderProducts() {
+    const productsContainer = document.getElementById('productsContainer');
+    if (!productsContainer) return;
+    
+    let html = '';
+    (products || []).forEach(product => {
+        // Rata-rata rating
+        const reviews = getProductReviews(product.id);
+        const avgRating = reviews.length ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '-';
+        
+        html += `<div class='product-card' style='position:relative;cursor:pointer;' onclick='showProductDetail(${JSON.stringify(product).replace(/'/g,"&#39;")})'>
+            <span class='wishlist-icon${isInWishlist(product.id) ? ' active' : ''}' onclick='event.stopPropagation();toggleWishlist(${JSON.stringify(product).replace(/'/g,"&#39;")})'>
+                <i class='fas fa-heart'></i>
+            </span>
+            <img src='${product.image || 'https://via.placeholder.com/300x200'}' alt='${product.name}' class='product-img'>
+            <div class='product-info'>
+                <h3 class='product-title'>${product.name}</h3>
+                <p class='product-price'>Rp${Number(product.price).toLocaleString()}</p>
+                <p class='product-desc'>${product.description || ''}</p>
+                <div style='color:#e67e22;font-size:0.98rem;margin-bottom:2px;'>
+                    <i class='fas fa-star'></i> ${avgRating} (${reviews.length})
+                </div>
+                <button class='add-to-cart-btn' onclick='event.stopPropagation();addToCart(${product.id})'>Add to Cart</button>
+            </div>
+        </div>`;
+    });
+    productsContainer.innerHTML = html;
+}
+
+window.showProductDetail = function(product) {
+    renderProductDetail(product);
+};
+
+// --- Tutup modal detail produk ---
+window.addEventListener('DOMContentLoaded', function() {
+    const productDetailModal = document.getElementById('productDetailModal');
+    if (productDetailModal) {
+        const closeBtn = productDetailModal.querySelector('.close');
+        if (closeBtn) closeBtn.onclick = function() { productDetailModal.style.display = 'none'; };
+    }
+});

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - ShopNow</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { margin: 0; background: #f5f6fa; font-family: 'Segoe UI', Arial, sans-serif; }
+        .admin-sidebar { position: fixed; left: 0; top: 0; width: 220px; height: 100vh; background: #2d8cff; color: #fff; display: flex; flex-direction: column; z-index: 10; }
+        .admin-sidebar h2 { text-align: center; margin: 1.5rem 0 1rem 0; font-size: 1.3rem; letter-spacing: 1px; }
+        .admin-sidebar nav { flex: 1; }
+        .admin-sidebar nav a { display: block; color: #fff; padding: 1rem 2rem; text-decoration: none; font-size: 1.05rem; transition: background 0.2s; }
+        .admin-sidebar nav a.active, .admin-sidebar nav a:hover { background: #1a6ed8; }
+        .admin-sidebar .logout-btn { margin: 1.5rem 2rem 1rem 2rem; background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 0.7rem; font-size: 1rem; cursor: pointer; }
+        .admin-main { margin-left: 220px; padding: 2rem 2.5rem; min-height: 100vh; }
+        .admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+        .admin-header h1 { font-size: 2rem; margin: 0; }
+        .admin-header .admin-user { font-size: 1rem; color: #2d8cff; background: #fff; padding: 0.5rem 1rem; border-radius: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .admin-section { display: none; }
+        .admin-section.active { display: block; }
+        /* --- Tambahan style standar untuk tabel, form, tombol --- */
+        .admin-table { width: 100%; border-collapse: collapse; background: #fff; margin-bottom: 1.5rem; }
+        .admin-table th, .admin-table td { border: 1px solid #e0e0e0; padding: 0.7rem 0.5rem; text-align: left; }
+        .admin-table th { background: #f0f4fa; }
+        .admin-table tr:nth-child(even) { background: #f9fbfd; }
+        .admin-btn { padding: 0.4rem 1rem; border: none; border-radius: 5px; font-size: 0.98rem; cursor: pointer; margin-right: 0.3rem; transition: background 0.2s; }
+        .admin-btn.edit { background: #f1c40f; color: #fff; }
+        .admin-btn.delete { background: #e74c3c; color: #fff; }
+        .admin-btn.toggle { background: #2ecc71; color: #fff; }
+        .admin-btn.inactive { background: #b2bec3; color: #fff; }
+        .admin-btn.verify { background: #2d8cff; color: #fff; }
+        .admin-btn.reject { background: #e74c3c; color: #fff; }
+        .admin-btn.detail { background: #636e72; color: #fff; }
+        .admin-btn.download { background: #00b894; color: #fff; }
+        .admin-btn.user { background: #636e72; color: #fff; }
+        .admin-btn.reset { background: #00b894; color: #fff; }
+        .admin-form { background: #fff; padding: 1.2rem; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); margin-bottom: 1.5rem; }
+        .admin-form .form-group { margin-bottom: 1rem; }
+        .admin-form label { display: block; margin-bottom: 0.4rem; }
+        .admin-form input, .admin-form textarea, .admin-form select { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 5px; }
+        .admin-form button { margin-top: 0.5rem; }
+        .invoice-proof-img { max-width: 80px; max-height: 80px; border-radius: 6px; border: 1px solid #eee; }
+        .invoice-status { font-weight: bold; }
+        .invoice-status.belum { color: #e67e22; }
+        .invoice-status.menunggu { color: #2980b9; }
+        .invoice-status.diterima { color: #27ae60; }
+        .invoice-status.ditolak { color: #c0392b; }
+        .user-status { font-weight: bold; }
+        .user-status.active { color: #27ae60; }
+        .user-status.inactive { color: #b2bec3; }
+        .dashboard-cards { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
+        .dashboard-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); padding: 1.2rem 2rem; min-width: 180px; flex: 1; display: flex; flex-direction: column; align-items: flex-start; }
+        .dashboard-card h3 { margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #2d8cff; }
+        .dashboard-card .stat { font-size: 2.1rem; font-weight: bold; color: #222; }
+        .settings-form { background: #fff; padding: 1.2rem; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); max-width: 500px; margin-bottom: 2rem; }
+        .settings-form .form-group { margin-bottom: 1rem; }
+        .settings-form label { display: block; margin-bottom: 0.4rem; }
+        .settings-form input, .settings-form textarea { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 5px; }
+        .settings-form button { margin-top: 0.5rem; }
+        .settings-logo-preview { max-width: 80px; max-height: 80px; border-radius: 8px; margin-bottom: 0.5rem; }
+        @media (max-width: 700px) {
+            .admin-sidebar { width: 100vw; height: auto; position: static; flex-direction: row; }
+            .admin-sidebar nav { display: flex; flex-direction: row; }
+            .admin-sidebar nav a { flex: 1; padding: 1rem 0.5rem; text-align: center; }
+            .admin-main { margin-left: 0; padding: 1rem; }
+            .dashboard-cards { flex-direction: column; gap: 1rem; }
+            .dashboard-card { min-width: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-sidebar">
+        <h2><i class="fas fa-user-shield"></i> Admin</h2>
+        <nav>
+            <a href="#" id="navDashboard" class="active"><i class="fas fa-chart-line"></i> Dashboard</a>
+            <a href="#" id="navProducts"><i class="fas fa-box"></i> Produk</a>
+            <a href="#" id="navInvoices"><i class="fas fa-file-invoice"></i> Invoice</a>
+            <a href="#" id="navUsers"><i class="fas fa-users"></i> User</a>
+            <a href="#" id="navSettings"><i class="fas fa-cog"></i> Pengaturan</a>
+        </nav>
+        <button class="logout-btn" id="adminLogoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </div>
+    <div class="admin-main">
+        <div class="admin-header">
+            <h1 id="adminPageTitle">Dashboard</h1>
+            <div class="admin-user" id="adminUserInfo"></div>
+        </div>
+        <section id="sectionDashboard" class="admin-section active">
+            <h2>Statistik Toko</h2>
+            <div id="dashboardStats"></div>
+        </section>
+        <section id="sectionProducts" class="admin-section">
+            <h2>Manajemen Produk</h2>
+            <div id="productAdminTools"></div>
+            <div id="productAdminList"></div>
+        </section>
+        <section id="sectionInvoices" class="admin-section">
+            <h2>Manajemen Invoice & Pembayaran</h2>
+            <div id="invoiceAdminTools"></div>
+            <div id="invoiceAdminList"></div>
+        </section>
+        <section id="sectionUsers" class="admin-section">
+            <h2>Manajemen User</h2>
+            <div id="userAdminTools"></div>
+            <div id="userAdminList">Loading...</div>
+        </section>
+        <section id="sectionSettings" class="admin-section">
+            <h2>Pengaturan Toko</h2>
+            <div id="settingsAdminContent"></div>
+        </section>
+    </div>
+    <script>
+    // Cek login admin
+    const admin = JSON.parse(localStorage.getItem('shopnow_admin_loggedin') || 'null');
+    if (!admin) {
+        window.location.href = 'admin-login.html';
+    } else {
+        document.getElementById('adminUserInfo').textContent = admin.username + (admin.role ? ' ('+admin.role+')' : '');
+    }
+    // Navigasi sidebar
+    const navs = [
+        { btn: 'navDashboard', section: 'sectionDashboard', title: 'Dashboard' },
+        { btn: 'navProducts', section: 'sectionProducts', title: 'Manajemen Produk' },
+        { btn: 'navInvoices', section: 'sectionInvoices', title: 'Manajemen Invoice & Pembayaran' },
+        { btn: 'navUsers', section: 'sectionUsers', title: 'Manajemen User' },
+        { btn: 'navSettings', section: 'sectionSettings', title: 'Pengaturan Toko' }
+    ];
+    navs.forEach(n => {
+        document.getElementById(n.btn).onclick = function(e) {
+            e.preventDefault();
+            navs.forEach(x => {
+                document.getElementById(x.btn).classList.remove('active');
+                document.getElementById(x.section).classList.remove('active');
+            });
+            this.classList.add('active');
+            document.getElementById(n.section).classList.add('active');
+            document.getElementById('adminPageTitle').textContent = n.title;
+        };
+    });
+    // Logout
+    document.getElementById('adminLogoutBtn').onclick = function() {
+        localStorage.removeItem('shopnow_admin_loggedin');
+        window.location.href = 'admin-login.html';
+    };
+    // Placeholder: load dashboard, produk, invoice, user, settings
+    document.getElementById('dashboardStats').textContent = 'Statistik penjualan, produk, user, dsb. akan tampil di sini.';
+    document.getElementById('productAdminList').textContent = 'Daftar produk akan tampil di sini.';
+    document.getElementById('invoiceAdminList').textContent = 'Daftar invoice & pembayaran akan tampil di sini.';
+    // --- PRODUK ADMIN ---
+    const PRODUCT_KEY = 'shopnow_products';
+    function getProducts() {
+        return JSON.parse(localStorage.getItem(PRODUCT_KEY) || '[]');
+    }
+    function saveProducts(products) {
+        localStorage.setItem(PRODUCT_KEY, JSON.stringify(products));
+    }
+    function renderProductAdminList() {
+        const products = getProducts();
+        let html = '';
+        if (products.length === 0) {
+            html = '<p>Tidak ada produk.</p>';
+        } else {
+            html = `<table class="admin-table">
+                <thead><tr>
+                    <th>Nama</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th>
+                </tr></thead><tbody>`;
+            products.forEach((p, i) => {
+                html += `<tr>
+                    <td>${p.name}</td>
+                    <td>${p.category || '-'}</td>
+                    <td>Rp${Number(p.price).toLocaleString()}</td>
+                    <td>${p.stock}</td>
+                    <td>${p.active ? '<span style="color:green">Aktif</span>' : '<span style="color:#888">Nonaktif</span>'}</td>
+                    <td>
+                        <button class="admin-btn edit" onclick="editProduct(${i})"><i class='fas fa-edit'></i></button>
+                        <button class="admin-btn delete" onclick="deleteProduct(${i})"><i class='fas fa-trash'></i></button>
+                        <button class="admin-btn toggle${p.active ? '' : ' inactive'}" onclick="toggleProductActive(${i})">${p.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        document.getElementById('productAdminList').innerHTML = html;
+    }
+    function renderProductAdminForm(editIdx = null) {
+        let p = { name:'', category:'', price:'', stock:'', description:'', active:true };
+        if (editIdx !== null) {
+            const products = getProducts();
+            p = products[editIdx];
+        }
+        document.getElementById('productAdminTools').innerHTML = `
+        <form class="admin-form" id="adminProductForm">
+            <div class="form-group">
+                <label>Nama Produk</label>
+                <input type="text" id="adminProductName" value="${p.name || ''}" required>
+            </div>
+            <div class="form-group">
+                <label>Kategori</label>
+                <input type="text" id="adminProductCategory" value="${p.category || ''}" placeholder="Contoh: Elektronik, Fashion, dll">
+            </div>
+            <div class="form-group">
+                <label>Harga</label>
+                <input type="number" id="adminProductPrice" value="${p.price || ''}" min="0" required>
+            </div>
+            <div class="form-group">
+                <label>Stok</label>
+                <input type="number" id="adminProductStock" value="${p.stock || ''}" min="0" required>
+            </div>
+            <div class="form-group">
+                <label>Deskripsi</label>
+                <textarea id="adminProductDesc" required>${p.description || ''}</textarea>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select id="adminProductActive">
+                    <option value="true" ${p.active ? 'selected' : ''}>Aktif</option>
+                    <option value="false" ${!p.active ? 'selected' : ''}>Nonaktif</option>
+                </select>
+            </div>
+            <button type="submit" class="admin-btn" style="background:#2d8cff;color:#fff;">${editIdx !== null ? 'Simpan Perubahan' : 'Tambah Produk'}</button>
+            ${editIdx !== null ? '<button type="button" class="admin-btn inactive" onclick="cancelEditProduct()">Batal</button>' : ''}
+        </form>`;
+        document.getElementById('adminProductForm').onsubmit = function(e) {
+            e.preventDefault();
+            const products = getProducts();
+            const newProduct = {
+                name: document.getElementById('adminProductName').value.trim(),
+                category: document.getElementById('adminProductCategory').value.trim(),
+                price: Number(document.getElementById('adminProductPrice').value),
+                stock: Number(document.getElementById('adminProductStock').value),
+                description: document.getElementById('adminProductDesc').value.trim(),
+                active: document.getElementById('adminProductActive').value === 'true'
+            };
+            if (editIdx !== null) {
+                products[editIdx] = { ...products[editIdx], ...newProduct };
+            } else {
+                products.push(newProduct);
+            }
+            saveProducts(products);
+            renderProductAdminList();
+            renderProductAdminForm();
+        };
+    }
+    function editProduct(idx) {
+        renderProductAdminForm(idx);
+    }
+    function deleteProduct(idx) {
+        if (confirm('Hapus produk ini?')) {
+            const products = getProducts();
+            products.splice(idx, 1);
+            saveProducts(products);
+            renderProductAdminList();
+            renderProductAdminForm();
+        }
+    }
+    function toggleProductActive(idx) {
+        const products = getProducts();
+        products[idx].active = !products[idx].active;
+        saveProducts(products);
+        renderProductAdminList();
+    }
+    function cancelEditProduct() {
+        renderProductAdminForm();
+    }
+    // Inisialisasi produk admin
+    renderProductAdminList();
+    renderProductAdminForm();
+    // --- INVOICE ADMIN ---
+    const INVOICE_KEY = 'shopnow_invoices';
+    function getInvoices() {
+        return JSON.parse(localStorage.getItem(INVOICE_KEY) || '[]');
+    }
+    function saveInvoices(invoices) {
+        localStorage.setItem(INVOICE_KEY, JSON.stringify(invoices));
+    }
+    function renderInvoiceAdminList() {
+        const invoices = getInvoices();
+        let html = '';
+        if (invoices.length === 0) {
+            html = '<p>Tidak ada invoice.</p>';
+        } else {
+            html = `<table class="admin-table">
+                <thead><tr>
+                    <th>ID</th><th>User</th><th>Total</th><th>Status</th><th>Bukti</th><th>Aksi</th>
+                </tr></thead><tbody>`;
+            invoices.forEach((inv, i) => {
+                html += `<tr>
+                    <td>${inv.id || '-'}</td>
+                    <td>${inv.username || '-'}</td>
+                    <td>Rp${Number(inv.total || 0).toLocaleString()}</td>
+                    <td><span class="invoice-status ${statusClass(inv.status)}">${inv.status || '-'}</span></td>
+                    <td>${inv.proofImage ? `<img src="${inv.proofImage}" class="invoice-proof-img">` : '-'}</td>
+                    <td>
+                        <button class="admin-btn detail" onclick="showInvoiceDetail(${i})"><i class='fas fa-eye'></i></button>
+                        ${inv.status === 'Menunggu Verifikasi' ? `<button class="admin-btn verify" onclick="verifyInvoice(${i},true)"><i class='fas fa-check'></i></button><button class="admin-btn reject" onclick="verifyInvoice(${i},false)"><i class='fas fa-times'></i></button>` : ''}
+                        <button class="admin-btn download" onclick="downloadInvoice(${i})"><i class='fas fa-download'></i></button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        document.getElementById('invoiceAdminList').innerHTML = html;
+    }
+    function statusClass(status) {
+        if (!status) return '';
+        if (status === 'Belum Bayar') return 'belum';
+        if (status === 'Menunggu Verifikasi') return 'menunggu';
+        if (status === 'Diterima') return 'diterima';
+        if (status === 'Ditolak') return 'ditolak';
+        return '';
+    }
+    function showInvoiceDetail(idx) {
+        const inv = getInvoices()[idx];
+        let html = `<h3>Detail Invoice</h3>
+        <p><b>ID:</b> ${inv.id || '-'}</p>
+        <p><b>User:</b> ${inv.username || '-'}</p>
+        <p><b>Total:</b> Rp${Number(inv.total || 0).toLocaleString()}</p>
+        <p><b>Status:</b> <span class="invoice-status ${statusClass(inv.status)}">${inv.status || '-'}</span></p>
+        <p><b>Catatan:</b> ${inv.note || '-'}</p>
+        <p><b>Bukti Transfer:</b><br>${inv.proofImage ? `<img src="${inv.proofImage}" style="max-width:200px;max-height:200px;border-radius:8px;">` : '-'}</p>
+        <button class="admin-btn inactive" onclick="closeInvoiceDetail()">Tutup</button>`;
+        showModal(html);
+    }
+    function verifyInvoice(idx, accept) {
+        const invoices = getInvoices();
+        if (!invoices[idx]) return;
+        invoices[idx].status = accept ? 'Diterima' : 'Ditolak';
+        saveInvoices(invoices);
+        renderInvoiceAdminList();
+        closeInvoiceDetail();
+    }
+    function downloadInvoice(idx) {
+        const inv = getInvoices()[idx];
+        let text = `INVOICE\nID: ${inv.id}\nUser: ${inv.username}\nTotal: Rp${Number(inv.total || 0).toLocaleString()}\nStatus: ${inv.status}\nCatatan: ${inv.note || '-'}\n`;
+        const blob = new Blob([text], {type: 'text/plain'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `invoice_${inv.id || idx}.txt`;
+        a.click();
+    }
+    // Modal util
+    function showModal(html) {
+        let modal = document.getElementById('adminModalPopup');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'adminModalPopup';
+            modal.style.position = 'fixed';
+            modal.style.left = '0';
+            modal.style.top = '0';
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.background = 'rgba(0,0,0,0.25)';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.zIndex = '9999';
+            document.body.appendChild(modal);
+        }
+        modal.innerHTML = `<div style="background:#fff;padding:2rem 2.5rem;border-radius:12px;max-width:400px;min-width:280px;position:relative;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+            <button onclick="closeInvoiceDetail()" style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.3rem;cursor:pointer;">&times;</button>
+            ${html}
+        </div>`;
+        modal.style.display = 'flex';
+    }
+    function closeInvoiceDetail() {
+        let modal = document.getElementById('adminModalPopup');
+        if (modal) modal.style.display = 'none';
+    }
+    // Inisialisasi invoice admin
+    renderInvoiceAdminList();
+    // --- USER ADMIN ---
+    const USER_KEY = 'shopnow_users';
+    function getUsers() {
+        return JSON.parse(localStorage.getItem(USER_KEY) || '[]');
+    }
+    function saveUsers(users) {
+        localStorage.setItem(USER_KEY, JSON.stringify(users));
+    }
+    function renderUserAdminList() {
+        const users = getUsers();
+        let html = '';
+        if (users.length === 0) {
+            html = '<p>Tidak ada user.</p>';
+        } else {
+            html = `<table class="admin-table">
+                <thead><tr>
+                    <th>Username</th><th>Email</th><th>Status</th><th>Role</th><th>Aksi</th>
+                </tr></thead><tbody>`;
+            users.forEach((u, i) => {
+                html += `<tr>
+                    <td>${u.username || '-'}</td>
+                    <td>${u.email || '-'}</td>
+                    <td><span class="user-status ${u.active !== false ? 'active' : 'inactive'}">${u.active !== false ? 'Aktif' : 'Nonaktif'}</span></td>
+                    <td>${u.role || 'user'}</td>
+                    <td>
+                        <button class="admin-btn user" onclick="toggleUserActive(${i})">${u.active !== false ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                        <button class="admin-btn reset" onclick="resetUserPassword(${i})">Reset Password</button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        document.getElementById('userAdminList').innerHTML = html;
+    }
+    function toggleUserActive(idx) {
+        const users = getUsers();
+        users[idx].active = users[idx].active === false ? true : false;
+        saveUsers(users);
+        renderUserAdminList();
+    }
+    function resetUserPassword(idx) {
+        const users = getUsers();
+        const newPass = prompt('Masukkan password baru untuk user ini:');
+        if (newPass && newPass.length >= 4) {
+            users[idx].password = newPass;
+            saveUsers(users);
+            alert('Password berhasil direset!');
+        } else if (newPass) {
+            alert('Password minimal 4 karakter.');
+        }
+    }
+    // Inisialisasi user admin
+    renderUserAdminList();
+    // --- DASHBOARD STATISTIK ---
+    function renderDashboardStats() {
+        const products = getProducts();
+        const users = getUsers();
+        const invoices = getInvoices();
+        const totalProduk = products.length;
+        const totalUser = users.filter(u => u.active !== false).length;
+        const totalInvoice = invoices.length;
+        const totalDiterima = invoices.filter(inv => inv.status === 'Diterima').length;
+        const totalDitolak = invoices.filter(inv => inv.status === 'Ditolak').length;
+        const totalMenunggu = invoices.filter(inv => inv.status === 'Menunggu Verifikasi').length;
+        const totalPenjualan = invoices.filter(inv => inv.status === 'Diterima').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+        document.getElementById('dashboardStats').innerHTML = `
+        <div class="dashboard-cards">
+            <div class="dashboard-card"><h3>Total Produk</h3><div class="stat">${totalProduk}</div></div>
+            <div class="dashboard-card"><h3>User Aktif</h3><div class="stat">${totalUser}</div></div>
+            <div class="dashboard-card"><h3>Total Invoice</h3><div class="stat">${totalInvoice}</div></div>
+            <div class="dashboard-card"><h3>Penjualan Diterima</h3><div class="stat">${totalDiterima}</div></div>
+            <div class="dashboard-card"><h3>Penjualan Ditolak</h3><div class="stat">${totalDitolak}</div></div>
+            <div class="dashboard-card"><h3>Menunggu Verifikasi</h3><div class="stat">${totalMenunggu}</div></div>
+            <div class="dashboard-card"><h3>Total Omzet</h3><div class="stat">Rp${totalPenjualan.toLocaleString()}</div></div>
+        </div>
+        <small>Statistik diambil dari data localStorage. Untuk data real-time lintas device, gunakan backend/database.</small>
+        `;
+    }
+    // --- PENGATURAN TOKO ---
+    const SETTINGS_KEY = 'shopnow_settings';
+    function getSettings() {
+        return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    }
+    function saveSettings(settings) {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }
+    function renderSettingsForm() {
+        const s = getSettings();
+        document.getElementById('settingsAdminContent').innerHTML = `
+        <form class="settings-form" id="settingsForm">
+            <div class="form-group">
+                <label>Nama Toko</label>
+                <input type="text" id="settingsShopName" value="${s.shopName || ''}" required>
+            </div>
+            <div class="form-group">
+                <label>Deskripsi Toko</label>
+                <textarea id="settingsShopDesc">${s.shopDesc || ''}</textarea>
+            </div>
+            <div class="form-group">
+                <label>Kontak (Email/WA)</label>
+                <input type="text" id="settingsShopContact" value="${s.shopContact || ''}">
+            </div>
+            <div class="form-group">
+                <label>Logo Toko</label><br>
+                <img src="${s.shopLogo || 'https://via.placeholder.com/80'}" class="settings-logo-preview" id="settingsLogoPreview"><br>
+                <input type="file" id="settingsShopLogo" accept="image/*">
+            </div>
+            <div class="form-group">
+                <label>Metode Pembayaran</label>
+                <div id="settingsPayments">
+                    ${renderPaymentMethods(s.paymentMethods)}
+                </div>
+            </div>
+            <button type="submit" class="admin-btn" style="background:#2d8cff;color:#fff;">Simpan Pengaturan</button>
+        </form>
+        <div id="settingsMsg"></div>
+        `;
+        document.getElementById('settingsShopLogo').onchange = function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    document.getElementById('settingsLogoPreview').src = evt.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        document.getElementById('settingsForm').onsubmit = function(e) {
+            e.preventDefault();
+            const settings = getSettings();
+            settings.shopName = document.getElementById('settingsShopName').value.trim();
+            settings.shopDesc = document.getElementById('settingsShopDesc').value.trim();
+            settings.shopContact = document.getElementById('settingsShopContact').value.trim();
+            const logoInput = document.getElementById('settingsShopLogo');
+            if (logoInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    settings.shopLogo = evt.target.result;
+                    settings.paymentMethods = getPaymentMethodsFromForm();
+                    saveSettings(settings);
+                    document.getElementById('settingsMsg').textContent = 'Pengaturan berhasil disimpan!';
+                };
+                reader.readAsDataURL(logoInput.files[0]);
+            } else {
+                settings.shopLogo = document.getElementById('settingsLogoPreview').src;
+                settings.paymentMethods = getPaymentMethodsFromForm();
+                saveSettings(settings);
+                document.getElementById('settingsMsg').textContent = 'Pengaturan berhasil disimpan!';
+            }
+        };
+    }
+    function renderPaymentMethods(methods) {
+        const banks = ['BCA','Mandiri','BNI','BRI','BSI','DKI'];
+        let html = '';
+        banks.forEach(bank => {
+            const m = (methods||[]).find(x=>x.bank===bank) || {bank,active:true,number:''};
+            html += `<div style="margin-bottom:8px;">
+                <label><input type="checkbox" class="pay-method-cb" data-bank="${bank}" ${m.active?'checked':''}> ${bank}</label>
+                <input type="text" class="pay-method-inp" data-bank="${bank}" placeholder="No. Rekening ${bank}" value="${m.number||''}" style="margin-left:8px;width:180px;">
+            </div>`;
+        });
+        return html;
+    }
+    function getPaymentMethodsFromForm() {
+        const banks = ['BCA','Mandiri','BNI','BRI','BSI','DKI'];
+        let arr = [];
+        banks.forEach(bank => {
+            const cb = document.querySelector('.pay-method-cb[data-bank="'+bank+'"]');
+            const inp = document.querySelector('.pay-method-inp[data-bank="'+bank+'"]');
+            arr.push({bank,active:cb.checked,number:inp.value.trim()});
+        });
+        return arr;
+    }
+    // Inisialisasi dashboard statistik
+    renderDashboardStats();
+    // Inisialisasi pengaturan toko
+    renderSettingsForm();
+    </script>
+</body>
+</html> 
