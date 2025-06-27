@@ -2674,3 +2674,88 @@ button:hover, .save-profile-btn:hover, .logout-btn:hover {
 .filter-tag .remove-filter:hover {
     opacity: 0.8;
 }
+
+/* --- Responsive Notifikasi Modal & List --- */
+#notifModal .modal-content {
+  max-width: 400px;
+  width: 96vw;
+  padding: 1.2rem 0.7rem;
+}
+#notifList {
+  margin-top: 1.1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.notif-item {
+  background: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(44,62,80,0.07);
+  padding: 0.9rem 1.2rem 0.9rem 0.9rem;
+  margin-bottom: 0.7rem;
+  font-size: 1.04rem;
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-height: 48px;
+}
+.notif-item.unread {
+  background: #e8f0fe;
+}
+.notif-item button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.notif-item button:hover {
+  background: #c0392b;
+}
+@media (max-width: 600px) {
+  #notifModal .modal-content {
+    max-width: 99vw;
+    width: 99vw;
+    padding: 0.7rem 0.2rem;
+  }
+  #notifList {
+    max-height: 70vh;
+    padding-right: 0;
+  }
+  .notif-item {
+    font-size: 1.01rem;
+    padding: 0.7rem 0.7rem 0.7rem 0.7rem;
+    min-height: 44px;
+  }
+  .notif-item button {
+    top: 8px;
+    right: 8px;
+    padding: 5px 12px;
+    font-size: 0.97rem;
+  }
+}
+@media (max-width: 430px) {
+  #notifModal .modal-content {
+    max-width: 100vw;
+    width: 100vw;
+    padding: 0.4rem 0.01rem;
+  }
+  .notif-item {
+    font-size: 0.97rem;
+    padding: 0.5rem 0.5rem 0.5rem 0.5rem;
+    min-height: 38px;
+  }
+  .notif-item button {
+    top: 6px;
+    right: 6px;
+    padding: 4px 8px;
+    font-size: 0.93rem;
+  }
+}

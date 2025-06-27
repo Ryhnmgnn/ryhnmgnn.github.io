@@ -1858,9 +1858,11 @@ function toggleWishlist(product) {
     if (idx !== -1) {
         wishlist.splice(idx, 1);
         showToast('Dihapus dari wishlist!', 'info');
+        addNotification('wishlist', `Produk <b>${product.name}</b> dihapus dari wishlist.`);
     } else {
         wishlist.push(product);
         showToast('Ditambahkan ke wishlist!', 'success');
+        addNotification('wishlist', `Produk <b>${product.name}</b> ditambahkan ke wishlist.`);
     }
     saveWishlist(wishlist);
     renderProducts();
@@ -2012,14 +2014,10 @@ function renderNotifList() {
         notifList.innerHTML = '<p>Tidak ada notifikasi.</p>';
         return;
     }
-    notifList.innerHTML = `<button onclick='markAllNotifAsRead()' style='margin-bottom:10px;padding:4px 12px;border-radius:6px;background:#2d8cff;color:#fff;border:none;cursor:pointer;'>Tandai semua sudah dibaca</button>` +
-        notifs.map(n => `
-        <div style='background:${n.read ? '#f7f7f7' : '#e8f5e9'};border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;'>
-            <div style='flex:1;'>
-                <b>${n.type === 'invoice' ? 'Pesanan' : 'Info'}</b> - ${n.message}<br>
-                <small>${n.time}</small>
-            </div>
-            ${!n.read ? `<button onclick='markNotifAsRead(${n.id})' style='margin-left:10px;padding:2px 10px;border-radius:5px;background:#27ae60;color:#fff;border:none;cursor:pointer;'>Tandai dibaca</button>` : ''}
+    notifList.innerHTML = notifs.map(n => `
+        <div class="notif-item${n.read ? '' : ' unread'}" style="position:relative;padding-right:40px;">
+            <div>${n.message}</div>
+            <button onclick="removeNotification('${n.id}')" style="position:absolute;top:8px;right:8px;background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:0.9rem;">Hapus</button>
         </div>
     `).join('');
 }
@@ -2309,3 +2307,12 @@ window.addEventListener('storage', function(e) {
         loadProducts();
     }
 });
+
+// Tambahkan fungsi removeNotification
+function removeNotification(id) {
+    let notifs = getNotifications();
+    notifs = notifs.filter(n => String(n.id) !== String(id));
+    saveNotifications(notifs);
+    renderNotifList();
+    updateNotifBadge && updateNotifBadge();
+}
