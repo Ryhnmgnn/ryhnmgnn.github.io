@@ -1823,13 +1823,44 @@ function saveWishlist(wishlist) {
 function isInWishlist(productId) {
     return getWishlist().some(p => p.id === productId);
 }
+// Tambahkan fungsi showToast untuk notifikasi
+function showToast(message, type = 'info') {
+    let toast = document.getElementById('toastNotif');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toastNotif';
+        toast.style.position = 'fixed';
+        toast.style.top = '24px';
+        toast.style.right = '24px';
+        toast.style.zIndex = '99999';
+        toast.style.padding = '14px 28px';
+        toast.style.borderRadius = '8px';
+        toast.style.fontSize = '1rem';
+        toast.style.fontWeight = '600';
+        toast.style.boxShadow = '0 2px 12px rgba(44,62,80,0.13)';
+        toast.style.transition = 'opacity 0.3s';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.style.background = type === 'success' ? '#2ecc71' : (type === 'error' ? '#e74c3c' : '#3498db');
+    toast.style.color = '#fff';
+    toast.style.opacity = '1';
+    toast.style.display = 'block';
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => { toast.style.display = 'none'; }, 400);
+    }, 2000);
+}
+// Modifikasi toggleWishlist agar tampilkan notifikasi
 function toggleWishlist(product) {
     let wishlist = getWishlist();
     const idx = wishlist.findIndex(p => p.id === product.id);
     if (idx !== -1) {
         wishlist.splice(idx, 1);
+        showToast('Dihapus dari wishlist!', 'info');
     } else {
         wishlist.push(product);
+        showToast('Ditambahkan ke wishlist!', 'success');
     }
     saveWishlist(wishlist);
     renderProducts();
