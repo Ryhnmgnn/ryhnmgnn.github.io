@@ -1201,12 +1201,6 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) {
-        loadProducts();
-    }
-});
-
 function setupEventListeners() {
     // Login/Register Modal Events
     loginBtn.addEventListener('click', () => loginModal.style.display = 'block');
