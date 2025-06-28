@@ -589,7 +589,24 @@ function loadProducts() {
         const description = product.description || '';
         const image = product.image || 'https://via.placeholder.com/300x200';
         const category = product.category || '-';
-        const payments = product.payments ? Object.entries(product.payments).filter(([key, val]) => val).map(([key]) => `<span class='payment-badge'>${key}</span>`).join(' ') : 'N/A';
+        
+        // Tampilkan informasi pembayaran yang lebih detail
+        let paymentsInfo = 'N/A';
+        if (product.payments && Array.isArray(product.payments)) {
+            const activePayments = product.payments.filter(p => p.active && p.number);
+            if (activePayments.length > 0) {
+                paymentsInfo = activePayments.map(p => 
+                    `<span class='payment-badge'>${p.bank}: ${p.number}</span>`
+                ).join(' ');
+            }
+        } else if (product.payments && typeof product.payments === 'object') {
+            // Fallback untuk format lama
+            paymentsInfo = Object.entries(product.payments)
+                .filter(([key, val]) => val)
+                .map(([key]) => `<span class='payment-badge'>${key}</span>`)
+                .join(' ');
+        }
+        
         return `
             <div class="product-card">
                 <img src="${image}" alt="${name}" class="product-image">
@@ -603,7 +620,7 @@ function loadProducts() {
                     <p class="product-description">${description}</p>
                     <div class="product-payments">
                         <span>Metode Pembayaran: </span>
-                        ${payments}
+                        ${paymentsInfo}
                     </div>
                     <button class="add-to-cart" onclick="addToCart(${id})">Add to Cart</button>
                 </div>
@@ -801,9 +818,72 @@ window.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             checkoutAddress.value = currentUser.address || '';
-            const settings = JSON.parse(localStorage.getItem('shopnow_settings') || '{}');
-            const payments = (settings.paymentMethods || []).filter(m => m.active);
-            checkoutPayment.innerHTML = payments.length ? payments.map(m => `<option value="${m.bank}">${m.bank} (${m.number})</option>`).join('') : '<option value="">Tidak ada metode pembayaran</option>';
+            
+            // Ambil semua produk yang ada di cart
+            const allProducts = getAllProducts();
+            const cartProducts = cart.map(item => {
+                const product = allProducts.find(p => p.id === item.id);
+                return { ...item, product };
+            });
+            
+            // Debug: Log data produk untuk memastikan integrasi
+            console.log('Cart Products:', cartProducts);
+            cartProducts.forEach(item => {
+                if (item.product) {
+                    console.log(`Product ${item.product.name}:`, item.product.payments);
+                }
+            });
+            
+            // Kumpulkan semua metode pembayaran yang tersedia dari produk di cart
+            const availablePayments = new Map();
+            if (cartProducts.length === 1 && cartProducts[0].product && Array.isArray(cartProducts[0].product.payments)) {
+                // Jika hanya satu produk di cart, hanya tampilkan rekening dari produk itu saja
+                cartProducts[0].product.payments.forEach(payment => {
+                    if (payment.active && payment.number) {
+                        const key = `${payment.bank}_${payment.number}`;
+                        availablePayments.set(key, {
+                            bank: payment.bank,
+                            number: payment.number,
+                            accountName: payment.accountName || '',
+                            products: [cartProducts[0].product.name]
+                        });
+                    }
+                });
+            } else {
+                // Jika multi-produk, tampilkan semua rekening unik dari produk-produk di cart
+                cartProducts.forEach(item => {
+                    if (item.product && item.product.payments && Array.isArray(item.product.payments)) {
+                        item.product.payments.forEach(payment => {
+                            if (payment.active && payment.number) {
+                                const key = `${payment.bank}_${payment.number}`;
+                                if (!availablePayments.has(key)) {
+                                    availablePayments.set(key, {
+                                        bank: payment.bank,
+                                        number: payment.number,
+                                        accountName: payment.accountName || '',
+                                        products: []
+                                    });
+                                }
+                                availablePayments.get(key).products.push(item.product.name);
+                            }
+                        });
+                    }
+                });
+            }
+            // Tampilkan opsi pembayaran
+            if (availablePayments.size > 0) {
+                checkoutPayment.innerHTML = Array.from(availablePayments.values()).map(payment => 
+                    `<option value="${payment.bank}_${payment.number}">${payment.bank} (${payment.number})${payment.accountName ? ' - ' + payment.accountName : ''}${payment.products.length > 1 ? ' [' + payment.products.join(', ') + ']' : ''}</option>`
+                ).join('');
+            } else {
+                // Fallback ke pengaturan toko
+                const settings = JSON.parse(localStorage.getItem('shopnow_settings') || '{}');
+                const payments = (settings.paymentMethods || []).filter(m => m.active);
+                checkoutPayment.innerHTML = payments.length ? payments.map(m => 
+                    `<option value="${m.bank}">${m.bank} (${m.number})</option>`
+                ).join('') : '<option value="">Tidak ada metode pembayaran</option>';
+            }
+            
             const total = cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
             checkoutTotal.textContent = 'Rp' + total.toLocaleString();
             checkoutDiscount.textContent = '';
@@ -860,6 +940,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 username: currentUser.username,
                 address: checkoutAddress.value.trim(),
                 paymentMethod: checkoutPayment.value,
+                paymentDetails: getPaymentDetailsFromSelection(checkoutPayment.value),
                 total: finalTotal,
                 discount,
                 promoCode,
@@ -878,22 +959,225 @@ window.addEventListener('DOMContentLoaded', function() {
             
             showPaymentInstructions([{bank: invoice.paymentMethod}], finalTotal, invoiceId);
             if (uploadProofModal) uploadProofModal.style.display = 'block';
+            console.log('--- CHECKOUT DEBUG ---');
+            console.log('Cart:', cart);
+            console.log('All Products:', getAllProducts());
+            console.log('Selected Payment:', checkoutPayment.value);
+            console.log('Payment Details:', getPaymentDetailsFromSelection(checkoutPayment.value));
         };
     }
 });
-// --- Ubah showPaymentInstructions agar bisa menerima invoiceId dan nomor rekening dari pengaturan toko ---
-function showPaymentInstructions(paymentList, total, invoiceId) {
-    // Ambil nomor rekening dari pengaturan toko
-    const settings = JSON.parse(localStorage.getItem('shopnow_settings') || '{}');
-    let rekeningInfo = '';
-    paymentList.forEach(obj => {
-        const bank = typeof obj === 'string' ? obj : obj.bank;
-        const m = (settings.paymentMethods || []).find(x => x.bank === bank);
-        if (m && m.active && m.number) {
-            rekeningInfo += `<li>${bank}: <strong>${m.number}</strong></li>`;
+
+// Fungsi untuk mendapatkan detail pembayaran dari pilihan user
+function getPaymentDetailsFromSelection(paymentSelection) {
+    if (!paymentSelection) return null;
+    
+    // Jika format "bank_number" (dari produk)
+    if (paymentSelection.includes('_')) {
+        const [bank, number] = paymentSelection.split('_');
+        
+        // Cari accountName dari produk yang ada di cart
+        const allProducts = getAllProducts();
+        const cart = getCart();
+        
+        for (const cartItem of cart) {
+            const product = allProducts.find(p => p.id === cartItem.id);
+            if (product && product.payments && Array.isArray(product.payments)) {
+                const payment = product.payments.find(p => p.bank === bank && p.number === number);
+                if (payment) {
+                    return {
+                        bank: payment.bank,
+                        number: payment.number,
+                        accountName: payment.accountName || ''
+                    };
+                }
+            }
         }
-    });
+        
+        // Fallback jika tidak ditemukan
+        return { bank, number, accountName: '' };
+    }
+    
+    // Jika format "bank" (dari pengaturan toko)
+    const settings = JSON.parse(localStorage.getItem('shopnow_settings') || '{}');
+    const payment = (settings.paymentMethods || []).find(m => m.bank === paymentSelection);
+    if (payment) {
+        return {
+            bank: payment.bank,
+            number: payment.number,
+            accountName: payment.accountName || ''
+        };
+    }
+    
+    return null;
+}
+
+// Fungsi untuk menampilkan informasi pembayaran produk
+function renderProductPayments(payments) {
+    if (!payments) return 'N/A';
+    
+    if (Array.isArray(payments)) {
+        // Format baru dengan array
+        const activePayments = payments.filter(p => p.active && p.number);
+        if (activePayments.length > 0) {
+            return activePayments.map(p => 
+                `<span class='payment-badge'>${p.bank}: ${p.number}${p.accountName ? ` (${p.accountName})` : ''}</span>`
+            ).join(' ');
+        }
+    } else if (typeof payments === 'object') {
+        // Format lama dengan object
+        return Object.entries(payments)
+            .filter(([key, val]) => val)
+            .map(([key]) => `<span class='payment-badge'>${key}</span>`)
+            .join(' ');
+    }
+    
+    return 'N/A';
+}
+
+// Fungsi untuk menampilkan informasi pembayaran di order detail
+function renderOrderPaymentInfo(invoice) {
+    if (!invoice) return 'N/A';
+    
+    // Jika ada paymentDetails (format baru)
+    if (invoice.paymentDetails) {
+        const payment = invoice.paymentDetails;
+        return `${payment.bank}: ${payment.number}${payment.accountName ? ` (${payment.accountName})` : ''}`;
+    }
+    
+    // Jika ada paymentMethod dengan format bank_number
+    if (invoice.paymentMethod && invoice.paymentMethod.includes('_')) {
+        const [bank, number] = invoice.paymentMethod.split('_');
+        
+        // Cari accountName dari produk
+        const allProducts = getAllProducts();
+        let accountName = '';
+        
+        if (invoice.items) {
+            for (const item of invoice.items) {
+                const product = allProducts.find(p => p.id === item.id);
+                if (product && product.payments && Array.isArray(product.payments)) {
+                    const payment = product.payments.find(p => p.bank === bank && p.number === number);
+                    if (payment) {
+                        accountName = payment.accountName || '';
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return `${bank}: ${number}${accountName ? ` (${accountName})` : ''}`;
+    }
+    
+    // Jika ada paymentMethod (format lama)
+    if (invoice.paymentMethod) {
+        return invoice.paymentMethod;
+    }
+    
+    return 'N/A';
+}
+
+// --- Ubah showPaymentInstructions agar bisa menerima invoiceId dan nomor rekening dari produk ---
+function showPaymentInstructions(paymentList, total, invoiceId) {
+    // Ambil data invoice untuk mendapatkan produk yang dibeli
+    const invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    
+    let rekeningInfo = '';
+    
+    if (invoice && invoice.paymentDetails) {
+        // Gunakan paymentDetails dari invoice (format baru)
+        const payment = invoice.paymentDetails;
+        rekeningInfo += `<li><strong>${payment.bank}:</strong> ${payment.number}`;
+        if (payment.accountName) {
+            rekeningInfo += ` (${payment.accountName})`;
+        }
+        rekeningInfo += `</li>`;
+    } else if (invoice && invoice.paymentMethod && invoice.paymentMethod.includes('_')) {
+        // Jika menggunakan format bank_number tapi belum ada paymentDetails
+        const [bank, number] = invoice.paymentMethod.split('_');
+        
+        // Cari accountName dari produk
+        const allProducts = getAllProducts();
+        let accountName = '';
+        
+        for (const item of invoice.items) {
+            const product = allProducts.find(p => p.id === item.id);
+            if (product && product.payments && Array.isArray(product.payments)) {
+                const payment = product.payments.find(p => p.bank === bank && p.number === number);
+                if (payment) {
+                    accountName = payment.accountName || '';
+                    break;
+                }
+            }
+        }
+        
+        rekeningInfo += `<li><strong>${bank}:</strong> ${number}`;
+        if (accountName) {
+            rekeningInfo += ` (${accountName})`;
+        }
+        rekeningInfo += `</li>`;
+    } else if (invoice && invoice.items && invoice.items.length > 0) {
+        // Ambil semua produk yang dibeli
+        const allProducts = getAllProducts();
+        const productIds = invoice.items.map(item => item.id);
+        const products = allProducts.filter(p => productIds.includes(p.id));
+        
+        // Kelompokkan produk berdasarkan metode pembayaran
+        const paymentGroups = {};
+        
+        products.forEach(product => {
+            if (product.payments && Array.isArray(product.payments)) {
+                product.payments.forEach(payment => {
+                    if (payment.active && payment.number) {
+                        const key = `${payment.bank}_${payment.number}`;
+                        if (!paymentGroups[key]) {
+                            paymentGroups[key] = {
+                                bank: payment.bank,
+                                number: payment.number,
+                                accountName: payment.accountName || '',
+                                products: [],
+                                total: 0
+                            };
+                        }
+                        const item = invoice.items.find(item => item.id === product.id);
+                        const itemTotal = (item.price * (item.quantity || 1));
+                        paymentGroups[key].products.push(product.name);
+                        paymentGroups[key].total += itemTotal;
+                    }
+                });
+            }
+        });
+        
+        // Tampilkan informasi pembayaran yang dikelompokkan
+        Object.values(paymentGroups).forEach(group => {
+            rekeningInfo += `<li><strong>${group.bank}:</strong> ${group.number}`;
+            if (group.accountName) {
+                rekeningInfo += ` (${group.accountName})`;
+            }
+            rekeningInfo += `<br><small>Produk: ${group.products.join(', ')}</small>`;
+            rekeningInfo += `<br><small>Total: Rp${group.total.toLocaleString()}</small></li>`;
+        });
+    }
+    
+    // Fallback ke pengaturan toko jika tidak ada data produk
+    if (!rekeningInfo) {
+        const settings = JSON.parse(localStorage.getItem('shopnow_settings') || '{}');
+        paymentList.forEach(obj => {
+            const bank = typeof obj === 'string' ? obj : obj.bank;
+            const m = (settings.paymentMethods || []).find(x => x.bank === bank);
+            if (m && m.active && m.number) {
+                rekeningInfo += `<li>${bank}: <strong>${m.number}</strong>`;
+                if (m.accountName) {
+                    rekeningInfo += ` (${m.accountName})`;
+                }
+                rekeningInfo += `</li>`;
+            }
+        });
+    }
+    
     if (!rekeningInfo) rekeningInfo = '<li>Tidak ada rekening penjual yang tersedia.</li>';
+    
     paymentInstructions.innerHTML = `
         <p><strong>Instruksi Pembayaran:</strong></p>
         <ul>${rekeningInfo}</ul>
@@ -1806,7 +2090,7 @@ function showOrderDetail(inv) {
         <p><b>Tanggal:</b> ${inv.time || '-'}</p>
         <p><b>Status:</b> <span style='font-weight:bold;color:${orderStatusColor(inv.status)}'>${inv.status || '-'}</span></p>
         <p><b>Alamat Pengiriman:</b> ${inv.address || '-'}</p>
-        <p><b>Metode Pembayaran:</b> ${inv.paymentMethod || '-'}</p>
+        <p><b>Metode Pembayaran:</b> ${renderOrderPaymentInfo(inv)}</p>
         <hr>
         ${itemsHtml}
         <p><b>Total:</b> Rp${Number(inv.total || 0).toLocaleString()}</p>
@@ -1839,7 +2123,7 @@ window.printInvoice = function(inv) {
         <p><b>Tanggal:</b> ${inv.time || '-'}</p>
         <p><b>Status:</b> ${inv.status || '-'}</p>
         <p><b>Alamat Pengiriman:</b> ${inv.address || '-'}</p>
-        <p><b>Metode Pembayaran:</b> ${inv.paymentMethod || '-'}</p>
+        <p><b>Metode Pembayaran:</b> ${renderOrderPaymentInfo(inv)}</p>
         <hr>
         ${itemsHtml}
         <p><b>Total:</b> Rp${Number(inv.total || 0).toLocaleString()}</p>
@@ -2360,7 +2644,7 @@ function renderProductDetail(product) {
             <div style='margin-bottom:0.5rem;'>Stok: ${product.stock || '-'}</div>
             <div style='margin-bottom:0.5rem;'>Berat: ${product.weight || '-'} gram</div>
             <div style='margin-bottom:0.5rem;'>Alamat Penjual: ${product.sellerAddress || '-'}</div>
-            <div style='margin-bottom:0.5rem;'>Metode Pembayaran: ${product.payments ? Object.entries(product.payments).filter(([key, val]) => val).map(([key]) => `<span class='payment-badge'>${key}</span>`).join(' ') : 'N/A'}</div>
+            <div style='margin-bottom:0.5rem;'>Metode Pembayaran: ${renderProductPayments(product.payments)}</div>
             <button class='add-to-cart' onclick='addToCart(${product.id})'>Add to Cart</button>
         </div>
     </div><hr style='margin:1.2rem 0;'>`;
@@ -2521,6 +2805,21 @@ window.addEventListener('storage', function(e) {
     if (e.key === 'shopnow_products' || e.key === 'shopnow_products_update') {
         console.log('Perubahan produk admin terdeteksi, reload produk...');
         loadProducts();
+        
+        // Refresh cart jika ada perubahan produk
+        const cart = getCart();
+        if (cart && cart.length > 0) {
+            console.log('Refreshing cart data...');
+            updateCart();
+        }
+    }
+});
+
+// Tambahkan event listener untuk perubahan localStorage yang lebih spesifik
+window.addEventListener('storage', function(e) {
+    if (e.key === 'shopnow_settings') {
+        console.log('Pengaturan toko berubah, refresh data...');
+        // Refresh data yang bergantung pada pengaturan toko
     }
 });
 
@@ -2737,3 +3036,179 @@ function formatFileSize(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+// Inisialisasi produk dengan sistem pembayaran yang berbeda
+function initializeSampleProducts() {
+    const existingProducts = JSON.parse(localStorage.getItem('shopnow_products') || '[]');
+    
+    // Hanya tambahkan jika belum ada produk
+    if (existingProducts.length === 0) {
+        const sampleProducts = [
+            {
+                id: 1,
+                name: "Laptop Gaming Pro",
+                category: "Elektronik",
+                price: 15000000,
+                stock: 5,
+                description: "Laptop gaming dengan performa tinggi untuk gaming dan editing",
+                active: true,
+                image: "https://via.placeholder.com/300x200",
+                sellerAddress: "Jl. Sudirman No. 123, Jakarta",
+                weight: 2500,
+                payments: [
+                    {
+                        bank: "BCA",
+                        active: true,
+                        number: "1234567890",
+                        accountName: "PT. Toko Elektronik"
+                    },
+                    {
+                        bank: "Mandiri",
+                        active: true,
+                        number: "0987654321",
+                        accountName: "PT. Toko Elektronik"
+                    },
+                    {
+                        bank: "BNI",
+                        active: false,
+                        number: "",
+                        accountName: ""
+                    }
+                ]
+            },
+            {
+                id: 2,
+                name: "Sepatu Nike Air Max",
+                category: "Fashion",
+                price: 2500000,
+                stock: 15,
+                description: "Sepatu olahraga premium dengan teknologi Air Max",
+                active: true,
+                image: "https://via.placeholder.com/300x200",
+                sellerAddress: "Jl. Thamrin No. 456, Jakarta",
+                weight: 800,
+                payments: [
+                    {
+                        bank: "BCA",
+                        active: true,
+                        number: "1122334455",
+                        accountName: "Toko Sepatu Premium"
+                    },
+                    {
+                        bank: "BRI",
+                        active: true,
+                        number: "5544332211",
+                        accountName: "Toko Sepatu Premium"
+                    },
+                    {
+                        bank: "Mandiri",
+                        active: false,
+                        number: "",
+                        accountName: ""
+                    }
+                ]
+            },
+            {
+                id: 3,
+                name: "Smartphone Samsung Galaxy",
+                category: "Elektronik",
+                price: 8000000,
+                stock: 8,
+                description: "Smartphone flagship dengan kamera terbaik",
+                active: true,
+                image: "https://via.placeholder.com/300x200",
+                sellerAddress: "Jl. Gatot Subroto No. 789, Jakarta",
+                weight: 180,
+                payments: [
+                    {
+                        bank: "BCA",
+                        active: true,
+                        number: "9988776655",
+                        accountName: "Gadget Store Indonesia"
+                    },
+                    {
+                        bank: "BSI",
+                        active: true,
+                        number: "5566778899",
+                        accountName: "Gadget Store Indonesia"
+                    },
+                    {
+                        bank: "DKI",
+                        active: true,
+                        number: "4433221100",
+                        accountName: "Gadget Store Indonesia"
+                    }
+                ]
+            }
+        ];
+        
+        localStorage.setItem('shopnow_products', JSON.stringify(sampleProducts));
+        console.log('Sample products initialized with different payment methods');
+    }
+}
+
+// Panggil fungsi inisialisasi saat halaman dimuat
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSampleProducts();
+    initializeDefaultSettings();
+});
+
+// Inisialisasi pengaturan default untuk toko
+function initializeDefaultSettings() {
+    const existingSettings = JSON.parse(localStorage.getItem('shopnow_settings') || '{}');
+    
+    // Hanya tambahkan jika belum ada pengaturan
+    if (!existingSettings.shopName) {
+        const defaultSettings = {
+            shopName: "ShopNow - Toko Online Terpercaya",
+            shopDesc: "Toko online dengan berbagai produk berkualitas dan sistem pembayaran yang fleksibel",
+            shopContact: "info@shopnow.com | +62 812-3456-7890",
+            shopLogo: "https://via.placeholder.com/80",
+            paymentMethods: [
+                {
+                    bank: "BCA",
+                    active: true,
+                    number: "1234567890",
+                    accountName: "PT. ShopNow Indonesia"
+                },
+                {
+                    bank: "Mandiri",
+                    active: true,
+                    number: "0987654321",
+                    accountName: "PT. ShopNow Indonesia"
+                },
+                {
+                    bank: "BNI",
+                    active: false,
+                    number: "",
+                    accountName: ""
+                },
+                {
+                    bank: "BRI",
+                    active: false,
+                    number: "",
+                    accountName: ""
+                },
+                {
+                    bank: "BSI",
+                    active: false,
+                    number: "",
+                    accountName: ""
+                },
+                {
+                    bank: "DKI",
+                    active: false,
+                    number: "",
+                    accountName: ""
+                }
+            ]
+        };
+        
+        localStorage.setItem('shopnow_settings', JSON.stringify(defaultSettings));
+        console.log('Default settings initialized');
+    }
+}
+
+// --- TOOLS FOR TESTING/DEBUG ---
+// (Bagian fungsi resetCart, reloadProducts, clearLocalStorageShopNow dihapus)
+// ... existing code ...
