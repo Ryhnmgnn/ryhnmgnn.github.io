@@ -469,9 +469,31 @@
             </div>
             <form id="uploadProofForm">
                 <div class="form-group">
-                    <label for="proofImage">Upload Bukti Transfer (jpg/png)</label>
+                    <label for="proofImage">Upload Bukti Transfer (JPG, PNG, WebP - Max 5MB)</label>
                     <input type="file" id="proofImage" accept="image/*" required>
+                    <div class="file-info" id="fileInfo" style="display:none;margin-top:8px;font-size:0.9rem;color:#666;">
+                        <span id="fileName"></span> (<span id="fileSize"></span>)
+                    </div>
                 </div>
+                
+                <!-- Preview Image -->
+                <div class="form-group" id="imagePreviewContainer" style="display:none;">
+                    <label>Preview:</label>
+                    <div class="image-preview-wrapper">
+                        <img id="imagePreview" src="" alt="Preview" style="max-width:100%;max-height:300px;border-radius:8px;border:2px solid #ddd;">
+                        <button type="button" id="removePreview" style="position:absolute;top:5px;right:5px;background:#e74c3c;color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:16px;">×</button>
+                    </div>
+                </div>
+                
+                <!-- Upload Progress -->
+                <div class="form-group" id="uploadProgressContainer" style="display:none;">
+                    <label>Progress Upload:</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="uploadProgress" style="width:0%;height:20px;background:#3498db;border-radius:10px;transition:width 0.3s ease;"></div>
+                    </div>
+                    <div id="uploadStatus" style="margin-top:5px;font-size:0.9rem;color:#666;"></div>
+                </div>
+                
                 <div class="form-group">
                     <label for="proofNote">Catatan (opsional)</label>
                     <textarea id="proofNote" placeholder="Catatan tambahan (opsional)"></textarea>
@@ -483,10 +505,11 @@
                         <li>Upload bukti transfer yang jelas dan valid.</li>
                         <li>Pastikan data pengiriman sudah benar.</li>
                         <li>Barang akan dikirim setelah pembayaran terverifikasi.</li>
+                        <li>Gambar akan dikompres otomatis untuk optimasi.</li>
                     </ul>
                     <label><input type="checkbox" id="agreeTerms" required> Saya setuju dengan syarat & ketentuan di atas</label>
                 </div>
-                <button type="submit">Kirim Bukti Transfer</button>
+                <button type="submit" id="submitProofBtn">Kirim Bukti Transfer</button>
             </form>
             <div id="uploadProofMessage" class="message"></div>
         </div>

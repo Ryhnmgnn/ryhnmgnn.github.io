@@ -86,6 +86,19 @@
         <div class="admin-header">
             <h1 id="adminPageTitle">Dashboard</h1>
             <div class="admin-user" id="adminUserInfo"></div>
+            <div style="position:relative;">
+                <button id="adminNotifBell" style="background:none;border:none;position:relative;font-size:1.6rem;cursor:pointer;margin-left:16px;">
+                    <i class="fas fa-bell"></i>
+                    <span id="adminNotifBadge" style="position:absolute;top:0;right:0;background:#e74c3c;color:#fff;font-size:0.8rem;padding:2px 6px;border-radius:10px;display:none;">0</span>
+                </button>
+            </div>
+        </div>
+        <div id="adminNotifModal" style="display:none;position:fixed;top:70px;right:40px;z-index:99999;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,0.13);border-radius:10px;min-width:320px;max-width:90vw;padding:1.2rem 1.1rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.7rem;">
+                <b style="font-size:1.1rem;">Notifikasi Admin</b>
+                <button onclick="document.getElementById('adminNotifModal').style.display='none'" style="background:none;border:none;font-size:1.3rem;cursor:pointer;">&times;</button>
+            </div>
+            <div id="adminNotifList">Loading...</div>
         </div>
         <section id="sectionDashboard" class="admin-section active">
             <h2>Statistik Toko</h2>
@@ -197,9 +210,9 @@
                     <td>${p.stock}</td>
                     <td>${p.active ? '<span style="color:green">Aktif</span>' : '<span style="color:#888">Nonaktif</span>'}</td>
                     <td>
-                        <button class="admin-btn edit" onclick="editProduct(${i})"><i class='fas fa-edit'></i></button>
-                        <button class="admin-btn delete" onclick="deleteProduct(${i})"><i class='fas fa-trash'></i></button>
-                        <button class="admin-btn toggle${p.active ? '' : ' inactive'}" onclick="toggleProductActive(${i})">${p.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                        <button class="admin-btn edit" onclick="editProductById('${p.id}')"><i class='fas fa-edit'></i></button>
+                        <button class="admin-btn delete" onclick="deleteProductById('${p.id}')"><i class='fas fa-trash'></i></button>
+                        <button class="admin-btn toggle${p.active ? '' : ' inactive'}" onclick="toggleProductActiveById('${p.id}')">${p.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
                     </td>
                 </tr>`;
             });
@@ -216,6 +229,7 @@
         }
     }
     function renderProductAdminForm(editIdx = null) {
+        console.log('renderProductAdminForm dipanggil dengan editIdx:', editIdx);
         let p = { name:'', category:'', price:'', stock:'', description:'', active:true };
         if (editIdx !== null) {
             const products = getProducts();
@@ -250,6 +264,20 @@
                     <option value="false" ${!p.active ? 'selected' : ''}>Nonaktif</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label>Berat (gram)</label>
+                <input type="number" id="adminProductWeight" value="${p.weight || ''}" min="0" required>
+            </div>
+            <div class="form-group">
+                <label>Alamat Penjual</label>
+                <textarea id="adminProductSellerAddress" required>${p.sellerAddress || ''}</textarea>
+            </div>
+            <div class="form-group">
+                <label>Metode Pembayaran</label>
+                <div id="adminProductPayments">
+                    ${renderPaymentMethods(p.payments)}
+                </div>
+            </div>
             <button type="submit" class="admin-btn" style="background:#2d8cff;color:#fff;">${editIdx !== null ? 'Simpan Perubahan' : 'Tambah Produk'}</button>
             ${editIdx !== null ? '<button type="button" class="admin-btn inactive" onclick="cancelEditProduct()">Batal</button>' : ''}
         </form>`;
@@ -270,10 +298,10 @@
                 description: document.getElementById('adminProductDesc').value.trim(),
                 active: document.getElementById('adminProductActive').value === 'true',
                 image: 'https://via.placeholder.com/300x200',
-                sellerAddress: '',
-                payments: {},
+                sellerAddress: document.getElementById('adminProductSellerAddress').value.trim(),
+                payments: getPaymentMethodsFromForm(),
                 rekenings: {},
-                weight: 0
+                weight: Number(document.getElementById('adminProductWeight').value)
             };
             if (editIdx !== null) {
                 products[editIdx] = { ...products[editIdx], ...newProduct };
@@ -287,23 +315,31 @@
             renderProductAdminForm();
         };
     }
-    function editProduct(idx) {
-        renderProductAdminForm(idx);
+    function editProductById(id) {
+        console.log('editProductById dipanggil dengan id:', id);
+        const products = getProducts();
+        const idx = products.findIndex(p => String(p.id) === String(id));
+        if (idx !== -1) renderProductAdminForm(idx);
     }
-    function deleteProduct(idx) {
-        if (confirm('Hapus produk ini?')) {
-            const products = getProducts();
+    function deleteProductById(id) {
+        if (!confirm('Hapus produk ini?')) return;
+        const products = getProducts();
+        const idx = products.findIndex(p => String(p.id) === String(id));
+        if (idx !== -1) {
             products.splice(idx, 1);
             saveProducts(products);
             renderProductAdminList();
             renderProductAdminForm();
         }
     }
-    function toggleProductActive(idx) {
+    function toggleProductActiveById(id) {
         const products = getProducts();
-        products[idx].active = !products[idx].active;
-        saveProducts(products);
-        renderProductAdminList();
+        const idx = products.findIndex(p => String(p.id) === String(id));
+        if (idx !== -1) {
+            products[idx].active = !products[idx].active;
+            saveProducts(products);
+            renderProductAdminList();
+        }
     }
     function cancelEditProduct() {
         renderProductAdminForm();
@@ -340,6 +376,7 @@
                         <button class="admin-btn detail" onclick="showInvoiceDetail(${i})"><i class='fas fa-eye'></i></button>
                         ${inv.status === 'Menunggu Verifikasi' ? `<button class="admin-btn verify" onclick="verifyInvoice(${i},true)"><i class='fas fa-check'></i></button><button class="admin-btn reject" onclick="verifyInvoice(${i},false)"><i class='fas fa-times'></i></button>` : ''}
                         <button class="admin-btn download" onclick="downloadInvoice(${i})"><i class='fas fa-download'></i></button>
+                        <button class="admin-btn delete" onclick="deleteInvoiceById('${inv.id}')"><i class='fas fa-trash'></i></button>
                     </td>
                 </tr>`;
             });
@@ -374,6 +411,23 @@
         saveInvoices(invoices);
         renderInvoiceAdminList();
         closeInvoiceDetail();
+        // Kirim notifikasi ke user (hanya satu kali per status)
+        const notifKey = 'notifications';
+        let notifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
+        const invoice = invoices[idx];
+        // Cek apakah sudah ada notifikasi status ini untuk invoice ini
+        const already = notifs.some(n => n.data && n.data.invoiceId === invoice.id && n.data.status === invoice.status);
+        if (!already) {
+            notifs.unshift({
+                id: Date.now(),
+                type: 'invoice',
+                message: `Status pesanan #${invoice.id} kini: ${invoice.status}`,
+                data: { invoiceId: invoice.id, status: invoice.status },
+                read: false,
+                time: new Date().toLocaleString()
+            });
+            localStorage.setItem(notifKey, JSON.stringify(notifs));
+        }
     }
     function downloadInvoice(idx) {
         const inv = getInvoices()[idx];
@@ -383,6 +437,13 @@
         a.href = URL.createObjectURL(blob);
         a.download = `invoice_${inv.id || idx}.txt`;
         a.click();
+    }
+    function deleteInvoiceById(id) {
+        if (!confirm('Hapus invoice ini?')) return;
+        let invoices = getInvoices();
+        invoices = invoices.filter(inv => String(inv.id) !== String(id));
+        saveInvoices(invoices);
+        renderInvoiceAdminList();
     }
     // Modal util
     function showModal(html) {
@@ -566,6 +627,15 @@
         };
     }
     function renderPaymentMethods(methods) {
+        // Jika methods object, konversi ke array
+        if (methods && !Array.isArray(methods) && typeof methods === 'object') {
+            methods = Object.keys(methods).map(bank => ({
+                bank,
+                active: !!methods[bank],
+                number: (typeof methods[bank] === 'object' && methods[bank].number) ? methods[bank].number : ''
+            }));
+        }
+        methods = methods || [];
         const banks = ['BCA','Mandiri','BNI','BRI','BSI','DKI'];
         let html = '';
         banks.forEach(bank => {
@@ -591,6 +661,66 @@
     renderDashboardStats();
     // Inisialisasi pengaturan toko
     renderSettingsForm();
+    // --- NOTIFIKASI ADMIN ---
+    function getAdminNotifications() {
+        return JSON.parse(localStorage.getItem('notifications_admin') || '[]');
+    }
+    function saveAdminNotifications(arr) {
+        localStorage.setItem('notifications_admin', JSON.stringify(arr));
+    }
+    function renderAdminNotifList() {
+        const notifs = getAdminNotifications();
+        const list = document.getElementById('adminNotifList');
+        if (!list) return;
+        if (notifs.length === 0) {
+            list.innerHTML = '<p style="margin:1.2rem 0;">Tidak ada notifikasi.</p>';
+            document.getElementById('adminNotifBadge').style.display = 'none';
+            return;
+        }
+        document.getElementById('adminNotifBadge').textContent = notifs.filter(n=>!n.read).length;
+        document.getElementById('adminNotifBadge').style.display = notifs.filter(n=>!n.read).length > 0 ? 'block' : 'none';
+        list.innerHTML = notifs.map(n => `
+            <div class="notif-item" style="background:#f8f9fa;border-radius:7px;padding:0.7rem 1.1rem;margin-bottom:0.6rem;display:flex;align-items:center;justify-content:space-between;">
+                <div style="flex:1;cursor:pointer;" onclick="openAdminNotifInvoice('${n.data && n.data.invoiceId ? n.data.invoiceId : ''}')">
+                    <span style="font-size:0.98rem;">${n.message}</span><br>
+                    <span style="font-size:0.82rem;color:#888;">${n.time || ''}</span>
+                </div>
+                <button onclick="removeAdminNotification('${n.id}')" style="background:none;border:none;color:#e74c3c;font-size:1.1rem;margin-left:8px;cursor:pointer;">&times;</button>
+            </div>
+        `).join('');
+    }
+    function removeAdminNotification(id) {
+        let notifs = getAdminNotifications();
+        notifs = notifs.filter(n => String(n.id) !== String(id));
+        saveAdminNotifications(notifs);
+        renderAdminNotifList();
+    }
+    function openAdminNotifInvoice(invoiceId) {
+        if (!invoiceId) return;
+        // Cari index invoice dan buka detail
+        const invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
+        const idx = invoices.findIndex(inv => String(inv.id) === String(invoiceId));
+        if (idx !== -1 && typeof showInvoiceDetail === 'function') {
+            showInvoiceDetail(idx);
+        }
+        document.getElementById('adminNotifModal').style.display = 'none';
+    }
+    document.getElementById('adminNotifBell').onclick = function() {
+        renderAdminNotifList();
+        document.getElementById('adminNotifModal').style.display = 'block';
+    };
+    window.addEventListener('click', function(e) {
+        const modal = document.getElementById('adminNotifModal');
+        const bell = document.getElementById('adminNotifBell');
+        if (modal && bell && !modal.contains(e.target) && !bell.contains(e.target)) {
+            modal.style.display = 'none';
+        }
+    });
+    renderAdminNotifList();
+    window.editProductById = editProductById;
+    window.deleteProductById = deleteProductById;
+    window.toggleProductActiveById = toggleProductActiveById;
+    window.deleteInvoiceById = deleteInvoiceById;
     </script>
 </body>
 </html> 

@@ -1,6 +1,13 @@
 // API URL
 const API_URL = 'http://localhost:3000/api';
 
+// Cloudinary Configuration
+const CLOUDINARY_CONFIG = {
+    cloudName: 'dy6nbfwet', // Replace with your Cloudinary cloud name
+    uploadPreset: 'Unsigned', // Replace with your upload preset
+    apiUrl: 'https://api.cloudinary.com/v1_1'
+};
+
 // --- INISIALISASI PRODUK DARI LOCALSTORAGE ---
 let products = [];
 if (localStorage.getItem('base_products')) {
@@ -574,6 +581,7 @@ function loadProducts() {
         const sellerAddress = product.sellerAddress || 'N/A';
         const description = product.description || '';
         const image = product.image || 'https://via.placeholder.com/300x200';
+        const category = product.category || '-';
         const payments = product.payments ? Object.entries(product.payments).filter(([key, val]) => val).map(([key]) => `<span class='payment-badge'>${key}</span>`).join(' ') : 'N/A';
         return `
             <div class="product-card">
@@ -581,6 +589,7 @@ function loadProducts() {
                 <div class="product-info">
                     <h3 class="product-title">${name}</h3>
                     <p class="product-price">Rp${Number(price).toLocaleString()}</p>
+                    <p class="product-category">Kategori: ${category}</p>
                     <p class="product-stock">Stok: ${stock}</p>
                     <p class="product-weight">Berat: ${weight} gram</p>
                     <p class="product-seller">Alamat Penjual: ${sellerAddress}</p>
@@ -856,6 +865,10 @@ window.addEventListener('DOMContentLoaded', function() {
             cart = [];
             updateCart();
             checkoutModal.style.display = 'none';
+            
+            // Tambahkan notifikasi checkout berhasil
+            addNotification('checkout', `Checkout berhasil! Invoice #${invoiceId} telah dibuat. Silakan lakukan pembayaran.`, { invoiceId: invoiceId, status: 'Belum Bayar' });
+            
             showPaymentInstructions([{bank: invoice.paymentMethod}], finalTotal, invoiceId);
             if (uploadProofModal) uploadProofModal.style.display = 'block';
         };
@@ -1586,14 +1599,30 @@ window.acceptProof = function(id) {
         proofs[idx].status = 'Diterima';
         localStorage.setItem('proofs', JSON.stringify(proofs));
         document.getElementById('status-' + id).textContent = 'Diterima';
-        // Kirim invoice ke pembeli (notifikasi sederhana)
-        proofs[idx].invoiceSent = true;
-        localStorage.setItem('proofs', JSON.stringify(proofs));
-        localStorage.setItem('invoice-' + proofs[idx].username, JSON.stringify({
-            time: proofs[idx].time,
-            note: proofs[idx].note,
-            image: proofs[idx].image
-        }));
+        // Update invoice user
+        let invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
+        const invIdx = invoices.findIndex(inv => inv.id === proofs[idx].invoiceId);
+        if (invIdx !== -1) {
+            invoices[invIdx].status = 'Diterima';
+            localStorage.setItem('shopnow_invoices', JSON.stringify(invoices));
+            // Kirim notifikasi ke user
+            localStorage.setItem('invoice-' + proofs[idx].username, JSON.stringify({
+                time: proofs[idx].time,
+                note: proofs[idx].note,
+                image: proofs[idx].image
+            }));
+            // Notifikasi user
+            let notifArr = JSON.parse(localStorage.getItem(`notifications_${proofs[idx].username}`) || '[]');
+            notifArr.unshift({
+                id: Date.now(),
+                type: 'invoice',
+                message: `Pembayaran untuk pesanan #${proofs[idx].invoiceId} telah diverifikasi dan diterima.`,
+                data: { invoiceId: proofs[idx].invoiceId, status: 'Diterima' },
+                read: false,
+                time: new Date().toLocaleString()
+            });
+            localStorage.setItem(`notifications_${proofs[idx].username}`, JSON.stringify(notifArr));
+        }
         alert('Invoice telah dikirim ke pembeli!');
     }
     showAdminProofList();
@@ -2021,26 +2050,41 @@ function renderNotifList() {
         </div>
     `).join('');
 }
+
 // Cek perubahan status invoice user untuk notifikasi
 function checkInvoiceNotifications() {
     const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
     if (!user) return;
     const invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
     const notifs = getNotifications();
-    const lastNotifStatus = {};
+    
+    // Cek notifikasi terakhir per invoiceId+status
+    const notifMap = {};
     notifs.forEach(n => {
-        if (n.data && n.data.invoiceId) {
-            lastNotifStatus[n.data.invoiceId] = n.data.status;
+        if (n.data && n.data.invoiceId && n.data.status) {
+            notifMap[n.data.invoiceId + '_' + n.data.status] = true;
         }
     });
+    
+    // Cek juga notifikasi yang sudah dihapus (disimpan di localStorage terpisah)
+    const deletedNotifs = JSON.parse(localStorage.getItem(`deleted_notifications_${user.username}`) || '[]');
+    deletedNotifs.forEach(n => {
+        if (n.data && n.data.invoiceId && n.data.status) {
+            notifMap[n.data.invoiceId + '_' + n.data.status] = true;
+        }
+    });
+    
     invoices.filter(inv => inv.username === user.username).forEach(inv => {
-        if (!lastNotifStatus[inv.id] || lastNotifStatus[inv.id] !== inv.status) {
-            if (inv.status && inv.status !== 'Belum Bayar') {
+        if (inv.status && inv.status !== 'Belum Bayar') {
+            const key = inv.id + '_' + inv.status;
+            if (!notifMap[key]) {
                 addNotification('invoice', `Status pesanan #${inv.id} kini: ${inv.status}`, { invoiceId: inv.id, status: inv.status });
+                notifMap[key] = true;
             }
         }
     });
 }
+
 // Event listeners untuk notifikasi
 window.addEventListener('DOMContentLoaded', function() {
     const notifBtn = document.getElementById('notifBtn');
@@ -2061,55 +2105,175 @@ window.addEventListener('DOMContentLoaded', function() {
 
 // Logika submit form upload bukti transfer
 if (uploadProofForm) {
-    uploadProofForm.onsubmit = function(e) {
+    uploadProofForm.onsubmit = async function(e) {
         e.preventDefault();
         uploadProofMessage.textContent = '';
-        if (!agreeTerms.checked) {
-            uploadProofMessage.textContent = 'Anda harus menyetujui syarat & ketentuan.';
-            return;
-        }
-        if (!proofImage.files || proofImage.files.length === 0) {
-            uploadProofMessage.textContent = 'Silakan upload bukti transfer.';
-            return;
-        }
-        const file = proofImage.files[0];
-        if (!file.type.match('image/(jpeg|png|jpg)')) {
-            uploadProofMessage.textContent = 'File harus berupa gambar JPG/PNG.';
-            return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-            uploadProofMessage.textContent = 'Ukuran gambar maksimal 5MB.';
-            return;
-        }
-        // Simpan data ke invoice terkait
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            // Cari invoice terakhir milik user yang statusnya "Belum Bayar"
-            let invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
-            const user = currentUser;
-            const idx = invoices.findIndex(inv => inv.username === user.username && inv.status === 'Belum Bayar');
-            if (idx === -1) {
-                uploadProofMessage.textContent = 'Tidak ditemukan invoice yang sesuai.';
+        console.log('[UPLOAD PROOF] Submit form dipanggil');
+        
+        try {
+            const fileInput = document.getElementById('proofImage');
+            if (!fileInput || !fileInput.files[0]) {
+                uploadProofMessage.textContent = 'Silakan pilih file bukti transfer (jpg/png/webp).';
+                console.error('[UPLOAD PROOF] File input tidak ditemukan atau tidak ada file.');
                 return;
             }
-            invoices[idx].proofImage = event.target.result;
-            invoices[idx].note = document.getElementById('proofNote').value;
-            invoices[idx].status = 'Menunggu Verifikasi';
-            localStorage.setItem('shopnow_invoices', JSON.stringify(invoices));
-            // Notifikasi user
-            addNotification('invoice', `Bukti transfer untuk pesanan #${invoices[idx].id} berhasil diupload. Menunggu verifikasi admin.`, { invoiceId: invoices[idx].id, status: 'Menunggu Verifikasi' });
-            uploadProofMessage.textContent = 'Bukti transfer berhasil dikirim! Menunggu verifikasi admin.';
-            uploadProofForm.reset();
-            setTimeout(() => {
-                uploadProofModal.style.display = 'none';
-                uploadProofMessage.textContent = '';
-            }, 2000);
-        };
-        reader.onerror = function() {
-            uploadProofMessage.textContent = 'Gagal membaca file gambar.';
-        };
-        reader.readAsDataURL(file);
+            
+            const file = fileInput.files[0];
+            
+            // Validate file
+            try {
+                validateImageFile(file);
+            } catch (validationError) {
+                uploadProofMessage.textContent = validationError.message;
+                return;
+            }
+            
+            // Disable submit button
+            const submitBtn = uploadProofForm.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+            
+            // Upload to Cloudinary
+            uploadProofMessage.textContent = 'Mengupload bukti transfer...';
+            const cloudinaryUrl = await uploadToCloudinary(file);
+            
+            // Process the uploaded image
+            await handleProofUpload(cloudinaryUrl);
+            
+        } catch (err) {
+            uploadProofMessage.textContent = 'Terjadi error saat upload. Silakan coba ulangi.';
+            console.error('[UPLOAD PROOF] Upload proof error:', err);
+            
+            // Re-enable submit button
+            const submitBtn = uploadProofForm.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = false;
+        }
     };
+    
+    // Add file input change event for preview
+    const fileInput = document.getElementById('proofImage');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                try {
+                    validateImageFile(file);
+                    showImagePreview(file);
+                } catch (error) {
+                    uploadProofMessage.textContent = error.message;
+                    // Clear the file input
+                    fileInput.value = '';
+                    // Hide preview
+                    const previewContainer = document.getElementById('imagePreviewContainer');
+                    const fileInfo = document.getElementById('fileInfo');
+                    if (previewContainer) previewContainer.style.display = 'none';
+                    if (fileInfo) fileInfo.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    // Add remove preview button functionality
+    const removePreviewBtn = document.getElementById('removePreview');
+    if (removePreviewBtn) {
+        removePreviewBtn.addEventListener('click', function() {
+            const fileInput = document.getElementById('proofImage');
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const fileInfo = document.getElementById('fileInfo');
+            
+            if (fileInput) fileInput.value = '';
+            if (previewContainer) previewContainer.style.display = 'none';
+            if (fileInfo) fileInfo.style.display = 'none';
+        });
+    }
+}
+
+// Fungsi lanjutan upload proof setelah kompresi
+async function handleProofUpload(cloudinaryUrl) {
+    try {
+        let invoices = JSON.parse(localStorage.getItem('shopnow_invoices') || '[]');
+        const user = currentUser;
+        const idx = invoices.findIndex(inv => inv.username === user.username && (inv.status === 'Belum Bayar' || inv.status === 'Menunggu Verifikasi'));
+        if (idx === -1) {
+            uploadProofMessage.textContent = 'Tidak ditemukan invoice yang bisa diupload. Silakan lakukan checkout ulang.';
+            console.error('[UPLOAD PROOF] Tidak ada invoice Belum Bayar/Menunggu Verifikasi untuk user', user.username);
+            const submitBtn = uploadProofForm.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = false;
+            return;
+        }
+        
+        // Update invoice with Cloudinary URL
+        invoices[idx].proofImage = cloudinaryUrl;
+        invoices[idx].note = document.getElementById('proofNote').value;
+        invoices[idx].status = 'Menunggu Verifikasi';
+        localStorage.setItem('shopnow_invoices', JSON.stringify(invoices));
+        
+        // Update proofs array
+        let proofs = JSON.parse(localStorage.getItem('proofs') || '[]');
+        const proofIdx = proofs.findIndex(p => p.invoiceId === invoices[idx].id && p.username === user.username);
+        if (proofIdx !== -1) {
+            proofs[proofIdx].image = cloudinaryUrl;
+            proofs[proofIdx].note = invoices[idx].note;
+            proofs[proofIdx].status = 'Menunggu Verifikasi';
+            proofs[proofIdx].time = new Date().toLocaleString();
+        } else {
+            proofs.push({
+                id: Date.now(),
+                username: user.username,
+                invoiceId: invoices[idx].id,
+                time: new Date().toLocaleString(),
+                note: invoices[idx].note,
+                image: cloudinaryUrl,
+                status: 'Menunggu Verifikasi'
+            });
+        }
+        localStorage.setItem('proofs', JSON.stringify(proofs));
+        
+        // Notifikasi user: selalu tambahkan notifikasi menunggu verifikasi admin
+        addNotification('invoice', `Bukti transfer untuk pesanan #${invoices[idx].id} berhasil diupload. Menunggu verifikasi admin.`, { invoiceId: invoices[idx].id, status: 'Menunggu Verifikasi' });
+        
+        // Notifikasi admin
+        let adminNotifs = JSON.parse(localStorage.getItem('notifications_admin') || '[]');
+        adminNotifs.unshift({
+            id: Date.now(),
+            type: 'proof',
+            message: `User <b>${user.username}</b> mengirim bukti transfer untuk invoice #${invoices[idx].id}.`,
+            data: { invoiceId: invoices[idx].id, username: user.username },
+            read: false,
+            time: new Date().toLocaleString()
+        });
+        localStorage.setItem('notifications_admin', JSON.stringify(adminNotifs));
+        
+        // Success message
+        uploadProofMessage.textContent = 'Bukti transfer berhasil dikirim! Menunggu verifikasi admin.';
+        console.log('[UPLOAD PROOF] Bukti transfer berhasil dikirim untuk invoice:', invoices[idx].id);
+        
+        // Reset form and hide progress
+        uploadProofForm.reset();
+        const submitBtn = uploadProofForm.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = false;
+        
+        // Hide preview and progress
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const fileInfo = document.getElementById('fileInfo');
+        const progressContainer = document.getElementById('uploadProgressContainer');
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (fileInfo) fileInfo.style.display = 'none';
+        if (progressContainer) progressContainer.style.display = 'none';
+        
+        // Close modal after delay
+        setTimeout(() => {
+            if (typeof uploadProofModal !== 'undefined') uploadProofModal.style.display = 'none';
+            uploadProofMessage.textContent = '';
+        }, 2000);
+        
+    } catch (err) {
+        uploadProofMessage.textContent = 'Terjadi error saat upload. Silakan coba ulangi.';
+        console.error('[UPLOAD PROOF] Upload proof error:', err);
+        
+        // Re-enable submit button
+        const submitBtn = uploadProofForm.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
 // --- Review Produk ---
@@ -2145,6 +2309,7 @@ function renderProductDetail(product) {
             <div style='margin-bottom:0.5rem;'>Stok: ${product.stock || '-'}</div>
             <div style='margin-bottom:0.5rem;'>Berat: ${product.weight || '-'} gram</div>
             <div style='margin-bottom:0.5rem;'>Alamat Penjual: ${product.sellerAddress || '-'}</div>
+            <div style='margin-bottom:0.5rem;'>Metode Pembayaran: ${product.payments ? Object.entries(product.payments).filter(([key, val]) => val).map(([key]) => `<span class='payment-badge'>${key}</span>`).join(' ') : 'N/A'}</div>
             <button class='add-to-cart' onclick='addToCart(${product.id})'>Add to Cart</button>
         </div>
     </div><hr style='margin:1.2rem 0;'>`;
@@ -2310,9 +2475,214 @@ window.addEventListener('storage', function(e) {
 
 // Tambahkan fungsi removeNotification
 function removeNotification(id) {
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    if (!user) return;
+    
     let notifs = getNotifications();
-    notifs = notifs.filter(n => String(n.id) !== String(id));
+    const notifToDelete = notifs.find(n => String(n.id) === String(id));
+    
+    if (notifToDelete) {
+        // Tambahkan animasi fade-out untuk notifikasi yang dihapus
+        const notifElement = document.querySelector(`[onclick="removeNotification('${id}')"]`)?.parentElement;
+        if (notifElement) {
+            // Tambahkan class fade-out untuk animasi
+            notifElement.classList.add('fade-out');
+            
+            setTimeout(() => {
+                // Simpan notifikasi yang dihapus ke localStorage terpisah
+                let deletedNotifs = JSON.parse(localStorage.getItem(`deleted_notifications_${user.username}`) || '[]');
+                deletedNotifs.push(notifToDelete);
+                localStorage.setItem(`deleted_notifications_${user.username}`, JSON.stringify(deletedNotifs));
+                
+                // Hapus dari notifikasi aktif
+                notifs = notifs.filter(n => String(n.id) !== String(id));
+                saveNotifications(notifs);
+                
+                // Update UI secara langsung tanpa refresh
+                const notifList = document.getElementById('notifList');
+                if (notifList) {
+                    if (notifs.length === 0) {
+                        notifList.innerHTML = '<p>Tidak ada notifikasi.</p>';
+                    } else {
+                        notifList.innerHTML = notifs.map(n => `
+                            <div class="notif-item${n.read ? '' : ' unread'}" style="position:relative;padding-right:40px;">
+                                <div>${n.message}</div>
+                                <button onclick="removeNotification('${n.id}')" style="position:absolute;top:8px;right:8px;background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:0.9rem;">Hapus</button>
+                            </div>
+                        `).join('');
+                    }
+                }
+                
+                // Update badge notifikasi dengan animasi
+                updateNotifBadge();
+                const notifBadge = document.getElementById('notifBadge');
+                if (notifBadge) {
+                    notifBadge.classList.add('pulse');
+                    setTimeout(() => {
+                        notifBadge.classList.remove('pulse');
+                    }, 600);
+                }
+            }, 300); // Tunggu animasi fade-out selesai
+        } else {
+            // Fallback jika elemen tidak ditemukan
+            // Simpan notifikasi yang dihapus ke localStorage terpisah
+            let deletedNotifs = JSON.parse(localStorage.getItem(`deleted_notifications_${user.username}`) || '[]');
+            deletedNotifs.push(notifToDelete);
+            localStorage.setItem(`deleted_notifications_${user.username}`, JSON.stringify(deletedNotifs));
+            
+            // Hapus dari notifikasi aktif
+            notifs = notifs.filter(n => String(n.id) !== String(id));
+            saveNotifications(notifs);
+            
+            // Update UI secara langsung tanpa refresh
+            const notifList = document.getElementById('notifList');
+            if (notifList) {
+                if (notifs.length === 0) {
+                    notifList.innerHTML = '<p>Tidak ada notifikasi.</p>';
+                } else {
+                    notifList.innerHTML = notifs.map(n => `
+                        <div class="notif-item${n.read ? '' : ' unread'}" style="position:relative;padding-right:40px;">
+                            <div>${n.message}</div>
+                            <button onclick="removeNotification('${n.id}')" style="position:absolute;top:8px;right:8px;background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:0.9rem;">Hapus</button>
+                        </div>
+                    `).join('');
+                }
+            }
+            
+            // Update badge notifikasi
+            updateNotifBadge();
+        }
+    }
+}
+
+// Fungsi untuk membersihkan localStorage secara berkala
+function clearLocalStorageBerkala() {
+    if (confirm('Hapus semua data localStorage? (cart, invoice, produk, dsb)')) {
+        localStorage.clear();
+        alert('localStorage sudah dibersihkan!');
+        location.reload();
+    }
+}
+
+// Fungsi untuk membersihkan notifikasi lama (lebih dari 30 hari)
+function cleanOldNotifications() {
+    const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+    if (!user) return;
+    
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    // Bersihkan notifikasi aktif
+    let notifs = getNotifications();
+    notifs = notifs.filter(n => {
+        const notifDate = new Date(n.time);
+        return notifDate > thirtyDaysAgo;
+    });
     saveNotifications(notifs);
-    renderNotifList();
-    updateNotifBadge && updateNotifBadge();
+    
+    // Bersihkan notifikasi yang sudah dihapus
+    let deletedNotifs = JSON.parse(localStorage.getItem(`deleted_notifications_${user.username}`) || '[]');
+    deletedNotifs = deletedNotifs.filter(n => {
+        const notifDate = new Date(n.time);
+        return notifDate > thirtyDaysAgo;
+    });
+    localStorage.setItem(`deleted_notifications_${user.username}`, JSON.stringify(deletedNotifs));
+    
+    updateNotifBadge();
+}
+
+// Jalankan pembersihan notifikasi lama setiap kali halaman dimuat
+window.addEventListener('DOMContentLoaded', function() {
+    // Jalankan pembersihan notifikasi lama
+    cleanOldNotifications();
+});
+
+// Cloudinary Upload Functions
+async function uploadToCloudinary(file) {
+    return new Promise((resolve, reject) => {
+        const url = `${CLOUDINARY_CONFIG.apiUrl}/${CLOUDINARY_CONFIG.cloudName}/image/upload`;
+        const xhr = new XMLHttpRequest();
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+        formData.append('cloud_name', CLOUDINARY_CONFIG.cloudName);
+
+        const progressContainer = document.getElementById('uploadProgressContainer');
+        const progressBar = document.getElementById('uploadProgress');
+        const uploadStatus = document.getElementById('uploadStatus');
+
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                if (progressBar) progressBar.style.width = percent + '%';
+                if (uploadStatus) uploadStatus.textContent = `Uploading... ${percent}%`;
+            }
+        });
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    if (progressBar) progressBar.style.width = '100%';
+                    if (uploadStatus) uploadStatus.textContent = 'Upload berhasil!';
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response.secure_url);
+                } else {
+                    if (uploadStatus) uploadStatus.textContent = 'Upload gagal!';
+                    reject(new Error('Upload failed: ' + xhr.status + ' ' + xhr.statusText));
+                }
+            }
+        };
+
+        xhr.open('POST', url, true);
+        xhr.send(formData);
+
+        // Set progress bar to 0% at start
+        if (progressBar) progressBar.style.width = '0%';
+        if (uploadStatus) uploadStatus.textContent = 'Mempersiapkan upload...';
+        if (progressContainer) progressContainer.style.display = 'block';
+    });
+}
+
+function validateImageFile(file) {
+    // Check file type
+    if (!file.type.match('image/(jpeg|png|jpg|webp)')) {
+        throw new Error('File harus berupa gambar JPG, PNG, atau WebP.');
+    }
+    
+    // Check file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+        throw new Error('Ukuran file maksimal 5MB.');
+    }
+    
+    return true;
+}
+
+function showImagePreview(file) {
+    const reader = new FileReader();
+    const previewContainer = document.getElementById('imagePreviewContainer');
+    const preview = document.getElementById('imagePreview');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    
+    reader.onload = function(e) {
+        preview.src = e.target.result;
+        previewContainer.style.display = 'block';
+        
+        // Show file info
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        fileInfo.style.display = 'block';
+    };
+    
+    reader.readAsDataURL(file);
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
