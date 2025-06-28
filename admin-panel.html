@@ -60,8 +60,6 @@
         .settings-form input, .settings-form textarea { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 5px; }
         .settings-form button { margin-top: 0.5rem; }
         .settings-logo-preview { max-width: 80px; max-height: 80px; border-radius: 8px; margin-bottom: 0.5rem; }
-        .payment-details { transition: all 0.3s ease; }
-        .payment-badge { display: inline-block; background: #2d8cff; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin: 2px; }
         @media (max-width: 700px) {
             .admin-sidebar { width: 100vw; height: auto; position: static; flex-direction: row; }
             .admin-sidebar nav { display: flex; flex-direction: row; }
@@ -236,8 +234,6 @@
         if (editIdx !== null) {
             const products = getProducts();
             p = products[editIdx];
-            console.log('Loading product for edit:', p);
-            console.log('Payment methods:', p.payments);
         }
         document.getElementById('productAdminTools').innerHTML = `
         <form class="admin-form" id="adminProductForm">
@@ -285,11 +281,6 @@
             <button type="submit" class="admin-btn" style="background:#2d8cff;color:#fff;">${editIdx !== null ? 'Simpan Perubahan' : 'Tambah Produk'}</button>
             ${editIdx !== null ? '<button type="button" class="admin-btn inactive" onclick="cancelEditProduct()">Batal</button>' : ''}
         </form>`;
-        
-        // Debug: Log form yang di-render
-        console.log('Payment methods form rendered for product:', p.name);
-        console.log('Payment methods data:', p.payments);
-        
         document.getElementById('adminProductForm').onsubmit = function(e) {
             e.preventDefault();
             const products = getProducts();
@@ -298,18 +289,6 @@
             try { baseProducts = JSON.parse(localStorage.getItem('base_products') || '[]'); } catch(e) {}
             const allProducts = [...products, ...baseProducts];
             const maxId = Math.max(0, ...allProducts.map(p => p.id || 0));
-            
-            // Validasi pembayaran
-            const paymentMethods = getPaymentMethodsFromForm();
-            console.log('Payment methods from form:', paymentMethods);
-            const activePayments = paymentMethods.filter(p => p.active);
-            for (const payment of activePayments) {
-                if (!payment.number.trim()) {
-                    alert(`Nomor rekening ${payment.bank} wajib diisi jika diaktifkan!`);
-                    return;
-                }
-            }
-            
             const newProduct = {
                 id: maxId + 1,
                 name: document.getElementById('adminProductName').value.trim(),
@@ -320,21 +299,18 @@
                 active: document.getElementById('adminProductActive').value === 'true',
                 image: 'https://via.placeholder.com/300x200',
                 sellerAddress: document.getElementById('adminProductSellerAddress').value.trim(),
-                payments: paymentMethods,
+                payments: getPaymentMethodsFromForm(),
                 rekenings: {},
                 weight: Number(document.getElementById('adminProductWeight').value)
             };
             if (editIdx !== null) {
                 products[editIdx] = { ...products[editIdx], ...newProduct };
-                console.log('Editing product:', products[editIdx]);
             } else {
                 products.push(newProduct);
-                console.log('Adding new product:', newProduct);
             }
             saveProducts(products);
             localStorage.setItem('shopnow_products_update', Date.now()); // Trigger event storage manual
             console.log('Produk admin disimpan:', products);
-            console.log('Payment methods saved:', newProduct.payments);
             renderProductAdminList();
             renderProductAdminForm();
         };
@@ -371,17 +347,6 @@
     // Inisialisasi produk admin
     renderProductAdminList();
     renderProductAdminForm();
-    
-    // Event listener untuk checkbox pembayaran
-    document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('pay-method-cb')) {
-            const bank = e.target.dataset.bank;
-            const paymentDetails = document.querySelector('.payment-details[data-bank="' + bank + '"]');
-            if (paymentDetails) {
-                paymentDetails.style.display = e.target.checked ? 'block' : 'none';
-            }
-        }
-    });
     // --- INVOICE ADMIN ---
     const INVOICE_KEY = 'shopnow_invoices';
     function getInvoices() {
@@ -618,8 +583,7 @@
                 <input type="file" id="settingsShopLogo" accept="image/*">
             </div>
             <div class="form-group">
-                <label>Metode Pembayaran Default</label>
-                <div style="margin-bottom:10px;font-size:0.9em;color:#666;">* Pengaturan ini akan digunakan sebagai default untuk produk baru</div>
+                <label>Metode Pembayaran</label>
                 <div id="settingsPayments">
                     ${renderPaymentMethods(s.paymentMethods)}
                 </div>
@@ -644,31 +608,19 @@
             settings.shopName = document.getElementById('settingsShopName').value.trim();
             settings.shopDesc = document.getElementById('settingsShopDesc').value.trim();
             settings.shopContact = document.getElementById('settingsShopContact').value.trim();
-            
-            // Validasi pembayaran
-            const paymentMethods = getPaymentMethodsFromForm();
-            console.log('Payment methods from form:', paymentMethods);
-            const activePayments = paymentMethods.filter(p => p.active);
-            for (const payment of activePayments) {
-                if (!payment.number.trim()) {
-                    alert(`Nomor rekening ${payment.bank} wajib diisi jika diaktifkan!`);
-                    return;
-                }
-            }
-            
             const logoInput = document.getElementById('settingsShopLogo');
             if (logoInput.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     settings.shopLogo = evt.target.result;
-                    settings.paymentMethods = paymentMethods;
+                    settings.paymentMethods = getPaymentMethodsFromForm();
                     saveSettings(settings);
                     document.getElementById('settingsMsg').textContent = 'Pengaturan berhasil disimpan!';
                 };
                 reader.readAsDataURL(logoInput.files[0]);
             } else {
                 settings.shopLogo = document.getElementById('settingsLogoPreview').src;
-                settings.paymentMethods = paymentMethods;
+                settings.paymentMethods = getPaymentMethodsFromForm();
                 saveSettings(settings);
                 document.getElementById('settingsMsg').textContent = 'Pengaturan berhasil disimpan!';
             }
@@ -686,21 +638,13 @@
         methods = methods || [];
         const banks = ['BCA','Mandiri','BNI','BRI','BSI','DKI'];
         let html = '';
-        html += '<div style="margin-bottom:10px;"><strong>Pilih metode pembayaran untuk produk ini:</strong></div>';
         banks.forEach(bank => {
-            const m = (methods||[]).find(x=>x.bank===bank) || {bank,active:false,number:''};
-            html += `<div style="margin-bottom:12px;padding:8px;border:1px solid #e0e0e0;border-radius:6px;">
-                <label style="display:flex;align-items:center;margin-bottom:6px;">
-                    <input type="checkbox" class="pay-method-cb" data-bank="${bank}" ${m.active?'checked':''} style="margin-right:8px;"> 
-                    <strong>${bank}</strong>
-                </label>
-                <div class="payment-details" data-bank="${bank}" style="display:${m.active?'block':'none'};margin-left:20px;">
-                    <input type="text" class="pay-method-inp" data-bank="${bank}" placeholder="No. Rekening ${bank}" value="${m.number||''}" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;margin-bottom:4px;">
-                    <input type="text" class="pay-method-name" data-bank="${bank}" placeholder="Nama Pemilik Rekening" value="${m.accountName||''}" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;">
-                </div>
+            const m = (methods||[]).find(x=>x.bank===bank) || {bank,active:true,number:''};
+            html += `<div style="margin-bottom:8px;">
+                <label><input type="checkbox" class="pay-method-cb" data-bank="${bank}" ${m.active?'checked':''}> ${bank}</label>
+                <input type="text" class="pay-method-inp" data-bank="${bank}" placeholder="No. Rekening ${bank}" value="${m.number||''}" style="margin-left:8px;width:180px;">
             </div>`;
         });
-        html += '<div style="margin-top:10px;font-size:0.9em;color:#666;">* Setiap produk dapat memiliki nomor rekening yang berbeda untuk bank yang sama</div>';
         return html;
     }
     function getPaymentMethodsFromForm() {
@@ -709,15 +653,7 @@
         banks.forEach(bank => {
             const cb = document.querySelector('.pay-method-cb[data-bank="'+bank+'"]');
             const inp = document.querySelector('.pay-method-inp[data-bank="'+bank+'"]');
-            const nameInp = document.querySelector('.pay-method-name[data-bank="'+bank+'"]');
-            if (cb && inp && nameInp) {
-                arr.push({
-                    bank,
-                    active: cb.checked,
-                    number: inp.value.trim(),
-                    accountName: nameInp.value.trim()
-                });
-            }
+            arr.push({bank,active:cb.checked,number:inp.value.trim()});
         });
         return arr;
     }
