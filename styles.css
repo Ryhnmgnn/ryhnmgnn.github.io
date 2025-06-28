@@ -30,10 +30,11 @@
 
 /* Apply Theme Variables */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    line-height: 1.6;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    font-family: 'Poppins', Arial, sans-serif;
+    background: #f7fafd;
+    color: #222;
+    margin: 0;
+    padding: 0;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -45,16 +46,17 @@ body {
 
 /* Navbar Styles */
 .navbar {
-    background: var(--card-bg);
-    border-bottom: 1.5px solid var(--border-color);
-    box-shadow: 0 2px 8px var(--shadow-color);
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: 100;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(44,62,80,0.07);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 2.5vw;
+    border-bottom: 1px solid #e3eaf2;
 }
 
 [data-theme="dark"] .navbar {
@@ -65,9 +67,11 @@ body {
 }
 
 .logo h1 {
-    color: #3498db;
-    letter-spacing: 1px;
+    font-size: 2rem;
     font-weight: 700;
+    color: #2d8cff;
+    letter-spacing: 1px;
+    margin: 0;
 }
 
 [data-theme="dark"] .logo h1 {
@@ -326,11 +330,9 @@ body {
 }
 
 [data-theme="dark"] .product-card {
-    background: var(--card-bg);
-    border: 1.5px solid var(--border-color);
-    box-shadow: 0 2px 12px var(--shadow-color);
-    border-radius: 12px;
-    transition: box-shadow 0.2s, border 0.2s, transform 0.2s;
+    background: #232a36;
+    color: #f5f6fa;
+    box-shadow: 0 4px 24px rgba(20,30,50,0.25);
 }
 
 .product-card:hover {
@@ -357,13 +359,24 @@ body {
 
 .product-title {
     font-size: 1.1rem;
-    color: #222c36;
+    color: #2d8cff;
     margin-bottom: 0.5rem;
     font-weight: 600;
 }
 
-[data-theme="dark"] .product-title {
-    color: #e3e7ed;
+[data-theme="dark"] .product-title,
+body[data-theme="dark"] .product-title {
+    color: #fff;
+}
+
+.product-description {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+[data-theme="dark"] .product-description {
+    color: #e0e6ef;
 }
 
 .product-price {
@@ -373,7 +386,7 @@ body {
 }
 
 [data-theme="dark"] .product-price {
-    color: #f1948a;
+    color: #ffb347;
 }
 
 .add-to-cart {
@@ -3290,4 +3303,99 @@ button:hover, .save-profile-btn:hover, .logout-btn:hover {
 
 [data-theme="dark"] #uploadStatus.processing {
     color: #f39c12;
+}
+
+/* Dark mode support */
+[data-theme="dark"] body,
+body[data-theme="dark"] {
+    background: #181c24;
+    color: #f5f6fa;
+}
+
+[data-theme="dark"] .product-card,
+body[data-theme="dark"] .product-card {
+    background: #232a36;
+    color: #f5f6fa;
+    box-shadow: 0 4px 24px rgba(20,30,50,0.25);
+}
+
+[data-theme="dark"] .product-title,
+body[data-theme="dark"] .product-title {
+    color: #fff;
+}
+
+[data-theme="dark"] .product-description,
+body[data-theme="dark"] .product-description {
+    color: #e0e6ef;
+}
+
+[data-theme="dark"] .product-price {
+    color: #ffb347;
+}
+
+[data-theme="dark"] .notif-item,
+body[data-theme="dark"] .notif-item {
+    background: #232a36 !important;
+    color: #f5f6fa !important;
+    border: 1px solid #2d8cff;
+}
+
+[data-theme="dark"] .notif-item .notif-btn,
+[data-theme="dark"] .notif-item button {
+    background: #e74c3c !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .notif-item .notif-btn:hover,
+[data-theme="dark"] .notif-item button:hover {
+    background: #c0392b !important;
+}
+
+#notifModal h2 {
+    background: none;
+    color: #2d8cff;
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin-bottom: 1.2rem;
+    padding: 0;
+    border-radius: 0;
+    display: inline-block;
+}
+
+[data-theme="dark"] #notifModal h2 {
+    background: none !important;
+    color: #fff !important;
+}
+
+/* Contact Us Modal - Dark Mode */
+[data-theme="dark"] #contactUsModal .modal-content {
+    background: #232a36;
+    color: #f5f6fa;
+}
+
+[data-theme="dark"] #contactUsModal h2 {
+    color: #fff;
+}
+
+[data-theme="dark"] #contactUsModal label {
+    color: #b8c6e4;
+}
+
+[data-theme="dark"] #contactUsModal input,
+[data-theme="dark"] #contactUsModal textarea,
+[data-theme="dark"] #contactUsModal select {
+    background: #181c24;
+    color: #f5f6fa;
+    border: 1px solid #2d8cff;
+}
+
+[data-theme="dark"] #contactUsModal input::placeholder,
+[data-theme="dark"] #contactUsModal textarea::placeholder {
+    color: #b8c6e4;
+    opacity: 1;
+}
+
+[data-theme="dark"] #contactUsModal button[type="submit"] {
+    background: linear-gradient(90deg, #2d8cff 60%, #e67e22 100%);
+    color: #fff;
 }
