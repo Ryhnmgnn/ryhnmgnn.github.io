@@ -1,0 +1,23 @@
+{
+  "name": "ShopNow",
+  "short_name": "ShopNow",
+  "description": "A modern and elegant online shop.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7fafd",
+  "theme_color": "#2d8cff",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+} 
