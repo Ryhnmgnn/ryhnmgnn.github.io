@@ -1025,6 +1025,12 @@ body[data-theme="dark"] .product-title {
     color: #e74c3c;
 }
 
+#profileMessage.info {
+    background-color: #e3f2fd;
+    border: 1px solid #3498db;
+    color: #3498db;
+}
+
 #profileMessage i {
     margin-right: 0.5rem;
     font-size: 1.2rem;
@@ -1172,6 +1178,12 @@ body[data-theme="dark"] .product-title {
     background-color: #fde8e8;
     border: 1px solid #e74c3c;
     color: #e74c3c;
+}
+
+#profileMessage.info {
+    background-color: #e3f2fd;
+    border: 1px solid #3498db;
+    color: #3498db;
 }
 
 #profileMessage i {
@@ -1470,6 +1482,12 @@ input:checked + .slider:before {
     background-color: #fde8e8;
     border: 1px solid #e74c3c;
     color: #e74c3c;
+}
+
+#profileMessage.info {
+    background-color: #e3f2fd;
+    border: 1px solid #3498db;
+    color: #3498db;
 }
 
 /* Responsive Profile Styles */

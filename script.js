@@ -318,6 +318,9 @@ async function checkUserSession() {
         // Tampilkan tombol logout di settings jika login
         if (logoutBtn) logoutBtn.style.display = 'block';
         
+        // Load profile data including image
+        loadProfileData();
+        
         // Sync cart with server
         try {
             const response = await fetch(`${API_URL}/update-cart`, {
@@ -380,6 +383,8 @@ async function handleLogin(e) {
             profileBtn.style.display = 'inline';
             loginBtn.textContent = `Welcome, ${currentUser.username}`;
             updateCart();
+            // Load profile data including image
+            loadProfileData();
             alert('Login successful!');
             return;
         }
@@ -404,6 +409,8 @@ async function handleLogin(e) {
             profileBtn.style.display = 'inline';
             loginBtn.textContent = `Welcome, ${user.username}`;
             updateCart();
+            // Load profile data including image
+            loadProfileData();
             alert('Login successful!');
         } else {
             alert('Invalid credentials!');
@@ -984,14 +991,29 @@ function loadProfileData() {
             document.getElementById('profileGender').value = user.gender || '';
             document.getElementById('profileBirthDate').value = user.birthDate || '';
             document.getElementById('profileAddress').value = user.address || '';
-            // Load profile image
+            
+            // Load profile image with multiple fallbacks
             const profileImage = document.getElementById('profileImage');
-            const savedImage = localStorage.getItem(`profileImage_${user.username}`);
-            if (savedImage) {
-                profileImage.src = savedImage;
-            } else if (user.profileImage) {
-                profileImage.src = user.profileImage;
-                localStorage.setItem(`profileImage_${user.username}`, user.profileImage);
+            let imageUrl = null;
+            
+            // Try to get image from multiple sources
+            if (user.profileImage && user.profileImage !== 'https://via.placeholder.com/150') {
+                imageUrl = user.profileImage;
+            } else {
+                // Try backup from localStorage
+                const backupImage = localStorage.getItem(`profileImage_${user.username}`);
+                if (backupImage) {
+                    imageUrl = backupImage;
+                    // Update user object with backup image
+                    user.profileImage = backupImage;
+                    currentUser = user;
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                }
+            }
+            
+            // Set the image
+            if (imageUrl) {
+                profileImage.src = imageUrl;
             } else {
                 profileImage.src = 'https://via.placeholder.com/150';
             }
@@ -1002,55 +1024,84 @@ function loadProfileData() {
     }
 }
 
-function handleImageUpload(e) {
+async function handleImageUpload(e) {
+    console.log('[DEBUG] handleImageUpload called');
     try {
         const file = e.target.files[0];
+        console.log('[DEBUG] File selected:', file);
+        
         if (file) {
             // Validate file type
-            if (!file.type.match('image/(jpeg|png)')) {
-                showMessage(document.getElementById('profileMessage'), 'Please select a JPG or PNG image file', 'error');
+            if (!file.type.match('image/(jpeg|png|jpg|webp)')) {
+                console.log('[DEBUG] Invalid file type:', file.type);
+                showMessage(document.getElementById('profileMessage'), 'Please select a JPG, PNG, or WebP image file', 'error');
                 return;
             }
-            // Validate file size (max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                showMessage(document.getElementById('profileMessage'), 'Image size should be less than 5MB', 'error');
+            // Validate file size (max 10MB for profile)
+            if (file.size > 10 * 1024 * 1024) {
+                console.log('[DEBUG] File too large:', file.size);
+                showMessage(document.getElementById('profileMessage'), 'Image size should be less than 10MB', 'error');
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const imageData = e.target.result;
-                // Update user data with new image
-                const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
-                if (user) {
-                    const updatedUser = {
-                        ...user,
-                        profileImage: imageData,
-                        lastUpdated: new Date().toISOString()
-                    };
-                    // Save to both currentUser and users array
-                    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-                    let users = JSON.parse(localStorage.getItem('users')) || [];
-                    const idx = users.findIndex(u => u.username === updatedUser.username);
-                    if (idx !== -1) {
-                        users[idx] = { ...users[idx], ...updatedUser };
-                    } else {
-                        users.push(updatedUser);
-                    }
-                    localStorage.setItem('users', JSON.stringify(users));
-                    // Update the image display
-                    document.getElementById('profileImage').src = imageData;
-                    showMessage(document.getElementById('profileMessage'), 'Profile image updated successfully!', 'success');
-                    // Save image data to localStorage separately for redundancy
-                    localStorage.setItem(`profileImage_${user.username}`, imageData);
+
+            console.log('[DEBUG] File validation passed, starting upload...');
+
+            // Show upload progress
+            const messageElement = document.getElementById('profileMessage');
+            messageElement.textContent = 'Uploading profile image...';
+            messageElement.className = 'message info';
+            messageElement.style.display = 'block';
+
+            // Upload to Cloudinary
+            console.log('[DEBUG] Calling uploadToCloudinary...');
+            const cloudinaryUrl = await uploadToCloudinary(file);
+            console.log('[DEBUG] Cloudinary URL received:', cloudinaryUrl);
+            
+            // Update user data with new image URL
+            const user = JSON.parse(localStorage.getItem('currentUser')) || currentUser;
+            console.log('[DEBUG] Current user:', user);
+            
+            if (user) {
+                const updatedUser = {
+                    ...user,
+                    profileImage: cloudinaryUrl,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                // Update global currentUser variable
+                currentUser = updatedUser;
+                
+                // Save to both currentUser and users array
+                localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+                
+                // Update users array
+                let users = JSON.parse(localStorage.getItem('users')) || [];
+                const idx = users.findIndex(u => u.username === updatedUser.username);
+                if (idx !== -1) {
+                    users[idx] = { ...users[idx], ...updatedUser };
+                } else {
+                    users.push(updatedUser);
                 }
-            };
-            reader.onerror = function() {
-                showMessage(document.getElementById('profileMessage'), 'Error reading image file', 'error');
-            };
-            reader.readAsDataURL(file);
+                localStorage.setItem('users', JSON.stringify(users));
+                
+                // Backup profile image URL separately for redundancy
+                localStorage.setItem(`profileImage_${user.username}`, cloudinaryUrl);
+                
+                // Update the image display
+                document.getElementById('profileImage').src = cloudinaryUrl;
+                showMessage(messageElement, 'Profile image updated successfully!', 'success');
+                console.log('[DEBUG] Profile image updated successfully');
+                
+                // Force save user data
+                saveUserData(updatedUser);
+            } else {
+                console.log('[DEBUG] No user found');
+                showMessage(messageElement, 'User not found. Please login again.', 'error');
+            }
         }
     } catch (error) {
-        showMessage(document.getElementById('profileMessage'), 'Error uploading image', 'error');
+        console.error('[DEBUG] Error uploading profile image:', error);
+        showMessage(document.getElementById('profileMessage'), 'Error uploading image. Please try again.', 'error');
     }
 }
 
