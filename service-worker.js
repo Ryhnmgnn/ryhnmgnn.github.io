@@ -26,9 +26,25 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
-  );
+  // Network first untuk file dinamis (index.html, script.js)
+  if (event.request.url.endsWith('/index.html') || event.request.url.endsWith('/script.js')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Simpan ke cache versi terbaru
+          return caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, response.clone());
+            return response;
+          });
+        })
+        .catch(() => caches.match(event.request))
+    );
+  } else {
+    // Cache first untuk file statis lain
+    event.respondWith(
+      caches.match(event.request).then(response => {
+        return response || fetch(event.request);
+      })
+    );
+  }
 }); 

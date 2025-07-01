@@ -170,6 +170,10 @@ const translations = {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+    if (!isLocalStorageAvailable()) {
+        alert('Browser Anda tidak mendukung localStorage. Fitur login tidak akan berfungsi optimal.');
+        return;
+    }
     // --- AUTO-FIX: Pastikan semua produk admin punya field active: true jika belum ada ---
     let adminProducts = [];
     try { adminProducts = JSON.parse(localStorage.getItem('shopnow_products') || '[]'); } catch(e) {}
@@ -306,52 +310,38 @@ function setOrders(orders) {
 }
 
 async function checkUserSession() {
+    if (!isLocalStorageAvailable()) return;
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
         cart = getCart();
         updateCart();
-        loginBtn.style.display = 'none';
-        settingsBtn.style.display = 'inline';
-        profileBtn.style.display = 'inline';
-        loginBtn.textContent = `Welcome, ${currentUser.username}`;
-        // Tampilkan tombol logout di settings jika login
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (settingsBtn) settingsBtn.style.display = 'inline';
+        if (profileBtn) profileBtn.style.display = 'inline';
+        if (loginBtn) loginBtn.textContent = `Welcome, ${currentUser.username}`;
         if (logoutBtn) logoutBtn.style.display = 'block';
-        
-        // Load profile data including image
         loadProfileData();
-        
-        // Sync cart with server
-        try {
-            const response = await fetch(`${API_URL}/update-cart`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username: currentUser.username,
-                    cart: currentUser.cart || []
-                })
-            });
-            const data = await response.json();
-            if (data.cart) {
-                cart = data.cart;
-                updateCart();
-            }
-        } catch (error) {
-            console.error('Error syncing cart:', error);
-        }
     } else {
-        // Guest: load cart guest
+        currentUser = null;
         cart = getCart();
         updateCart();
-        // Sembunyikan tombol logout jika belum login
+        if (loginBtn) loginBtn.style.display = 'inline';
+        if (settingsBtn) settingsBtn.style.display = 'none';
+        if (profileBtn) profileBtn.style.display = 'none';
+        if (loginBtn) loginBtn.textContent = 'Login';
         if (logoutBtn) logoutBtn.style.display = 'none';
     }
-    updateAdminBtn();
-    checkInvoice();
+    updateAdminBtn && updateAdminBtn();
+    checkInvoice && checkInvoice();
 }
 
 async function handleLogin(e) {
     e.preventDefault();
+    if (!isLocalStorageAvailable()) {
+        alert('localStorage tidak tersedia. Tidak bisa login.');
+        return;
+    }
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
@@ -443,6 +433,7 @@ async function handleLogin(e) {
 }
 
 async function handleLogout() {
+    if (!isLocalStorageAvailable()) return;
     if (currentUser) {
         try {
             // Save cart to server before logout
@@ -466,15 +457,13 @@ async function handleLogout() {
     localStorage.removeItem('currentUser');
     cart = getCart(); // guest cart
     updateCart();
-    loginBtn.style.display = 'inline';
-    settingsBtn.style.display = 'none';
-    profileBtn.style.display = 'none';
-    loginBtn.textContent = 'Login';
-    settingsModal.style.display = 'none';
-    profileModal.style.display = 'none';
-    // Sembunyikan tombol logout setelah logout
+    if (loginBtn) loginBtn.style.display = 'inline';
+    if (settingsBtn) settingsBtn.style.display = 'none';
+    if (profileBtn) profileBtn.style.display = 'none';
+    if (loginBtn) loginBtn.textContent = 'Login';
+    if (settingsModal) settingsModal.style.display = 'none';
+    if (profileModal) profileModal.style.display = 'none';
     if (logoutBtn) logoutBtn.style.display = 'none';
-    // Clear any open modals
     document.querySelectorAll('.modal').forEach(modal => {
         modal.style.display = 'none';
     });
@@ -2736,4 +2725,16 @@ function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Tambahkan helper untuk cek localStorage support
+function isLocalStorageAvailable() {
+    try {
+        const testKey = '__test__';
+        localStorage.setItem(testKey, '1');
+        localStorage.removeItem(testKey);
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
